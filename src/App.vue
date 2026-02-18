@@ -7,7 +7,7 @@ import Idef0Node from "./components/Idef0Node.vue";
 import ResourceNodeVue from "./components/ResourceNode.vue";
 import { ProcessNode } from "./nodes/ProcessNode";
 import { ResourceNode } from "./nodes/ResourceNode";
-import { getStoredAuthToken, getStoredEmail, initReownAppKit, openReownModal } from "./services/reownAppkit";
+import { getStoredAuthToken, getStoredEmail, setTokenCallback, openReownModal } from "./services/reownAppkit";
 
 const baklava = useBaklava();
 const showInstructions = ref(false); // Start with instructions hidden
@@ -1092,7 +1092,9 @@ onMounted(() => {
   // Restore contact fields from localStorage
   restoreContactFields();
   
-  initReownAppKit((token) => {
+  // Set callback for when user connects (but don't initialize Web3 yet)
+  // Web3 will only initialize when user explicitly opens the ReOwn modal
+  setTokenCallback((token) => {
     authToken.value = token;
     if (!contactEmail.value.trim()) {
       const storedEmail = readStoredEmail();
@@ -1107,7 +1109,7 @@ onMounted(() => {
         handleSaveFlow();
       }, 0);
     }
-  }).catch((error) => console.error(error));
+  });
 
   const initialFlowId = parseFlowIdFromUrl();
   if (initialFlowId) {
