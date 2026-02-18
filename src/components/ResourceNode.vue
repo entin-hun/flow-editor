@@ -171,12 +171,37 @@ const isVertical = ref(false);
 const updateOrientation = () => {
   isVertical.value = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
 };
+
+// Track total connections across all ports to conditionally show the delete button
+const totalConnectionCount = ref(0);
+const connectionToken = Symbol("ResourceNode.connectionCount");
+
+const syncConnectionCount = () => {
+  totalConnectionCount.value = [
+    ...Object.values(props.node.inputs),
+    ...Object.values(props.node.outputs),
+  ].reduce((sum, intf) => sum + (intf as NodeInterface).connectionCount, 0);
+};
+
+const hasMultipleConnections = computed(() => totalConnectionCount.value > 1);
+
 onMounted(() => {
   updateOrientation();
   window.addEventListener("resize", updateOrientation);
+
+  syncConnectionCount();
+  const allIntfs = [...Object.values(props.node.inputs), ...Object.values(props.node.outputs)] as NodeInterface[];
+  allIntfs.forEach((intf) => {
+    intf.events.setConnectionCount.subscribe(connectionToken, () => syncConnectionCount());
+  });
 });
 onUnmounted(() => {
   window.removeEventListener("resize", updateOrientation);
+
+  const allIntfs = [...Object.values(props.node.inputs), ...Object.values(props.node.outputs)] as NodeInterface[];
+  allIntfs.forEach((intf) => {
+    intf.events.setConnectionCount.unsubscribe(connectionToken);
+  });
 });
 
 /**
@@ -310,7 +335,7 @@ const NodeInterfaceView = Components.NodeInterface;
         @input="syncTitle"
         @blur="syncTitle"
       />
-      <button class="delete-btn" type="button" title="Delete" @click.stop="props.onDelete?.()">
+      <button v-show="!hasMultipleConnections" class="delete-btn" type="button" title="Delete" @click.stop="props.onDelete?.()">
         ×
       </button>
     </div>
