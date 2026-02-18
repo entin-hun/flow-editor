@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import type { CSSProperties } from "vue";
 import type { AbstractNode, NodeInterface } from "@baklavajs/core";
 import { Components } from "@baklavajs/renderer-vue";
 
@@ -48,14 +49,40 @@ watch(
 const readLocation = (intf: NodeInterface<unknown>) =>
   (intf as NodeInterface<unknown> & { data?: PortMeta }).data?.location;
 
+/** Detect portrait / vertical screen orientation */
+const isVertical = ref(false);
+const updateOrientation = () => {
+  isVertical.value = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+};
+onMounted(() => {
+  updateOrientation();
+  window.addEventListener("resize", updateOrientation);
+});
+onUnmounted(() => {
+  window.removeEventListener("resize", updateOrientation);
+});
+
+/**
+ * In portrait mode, remap process-node port sides:
+ *   left (inputs)     → top
+ *   right (outputs)   → bottom
+ *   bottom (mechanisms) → right
+ *   top (controls)    → right
+ */
+const remapSide = (side: Location): Location => {
+  if (!isVertical.value) return side;
+  const map: Record<Location, Location> = { left: "top", right: "bottom", bottom: "right", top: "right" };
+  return map[side] ?? side;
+};
+
 const inputPorts = computed(() => Object.values(props.node.inputs).filter((intf) => readLocation(intf) === "left"));
 const outputPorts = computed(() => Object.values(props.node.outputs).filter((intf) => readLocation(intf) === "right"));
 const mechanismPorts = computed(() => Object.values(props.node.inputs).filter((intf) => readLocation(intf) === "bottom"));
 
-const getPortStyle = (side: Location) => {
+const getPortStyle = (side: Location): CSSProperties => {
   if (side === "left") {
     return {
-      position: "absolute",
+      position: "absolute" as const,
       left: "0%",
       top: "50%",
       transform: "translate(-50%, -50%)",
@@ -64,15 +91,24 @@ const getPortStyle = (side: Location) => {
 
   if (side === "right") {
     return {
-      position: "absolute",
+      position: "absolute" as const,
       left: "100%",
       top: "50%",
       transform: "translate(-50%, -50%)",
     };
   }
 
+  if (side === "top") {
+    return {
+      position: "absolute" as const,
+      left: "50%",
+      top: "0%",
+      transform: "translate(-50%, -50%)",
+    };
+  }
+
   return {
-    position: "absolute",
+    position: "absolute" as const,
     left: "50%",
     top: "100%",
     transform: "translate(-50%, -50%)",
@@ -87,6 +123,9 @@ const getAddButtonStyle = (side: Location) => {
   if (side === "right") {
     return { ...base, left: "calc(100% + 12px)" };
   }
+  if (side === "top") {
+    return { ...base, top: "-12px" };
+  }
   return { ...base, top: "calc(100% + 12px)" };
 };
 
@@ -100,13 +139,13 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('left')"
+      :style="getPortStyle(remapSide('left'))"
     />
     <button
       class="add-port-btn"
       type="button"
       title="Add input"
-      :style="getAddButtonStyle('left')"
+      :style="getAddButtonStyle(remapSide('left'))"
       @click.stop="props.onAddInput?.()"
     >
       +
@@ -117,13 +156,13 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('right')"
+      :style="getPortStyle(remapSide('right'))"
     />
     <button
       class="add-port-btn"
       type="button"
       title="Add output"
-      :style="getAddButtonStyle('right')"
+      :style="getAddButtonStyle(remapSide('right'))"
       @click.stop="props.onAddOutput?.()"
     >
       +
@@ -157,13 +196,13 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('bottom')"
+      :style="getPortStyle(remapSide('bottom'))"
     />
     <button
       class="add-port-btn"
       type="button"
       title="Add mechanism"
-      :style="getAddButtonStyle('bottom')"
+      :style="getAddButtonStyle(remapSide('bottom'))"
       @click.stop="props.onAddMechanism?.()"
     >
       +
@@ -180,14 +219,16 @@ const NodeInterfaceView = Components.NodeInterface;
   width: 200px;
   max-width: 200px;
   padding: 10px;
-  background: #2a2a2a;
-  border: 2px solid #4fc3f7;
-  border-radius: 6px;
+  background: hsl(var(--card));
+  border: 1.5px solid hsl(var(--primary));
+  border-radius: var(--radius);
   position: relative;
+  box-shadow: var(--shadow-md);
 }
 
 .idef0-node.selected {
-  border-color: #111;
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.2), var(--shadow-md);
 }
 
 .port-area {
@@ -201,14 +242,14 @@ const NodeInterfaceView = Components.NodeInterface;
   grid-area: top;
   justify-content: center;
   flex-wrap: wrap;
-  border-bottom: 1px solid #000;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .port-area.bottom {
   grid-area: bottom;
   justify-content: center;
   flex-wrap: wrap;
-  border-top: 1px solid #000;
+  border-top: 1px solid hsl(var(--border));
 }
 
 .idef0-node :deep(.baklava-node-interface) {
@@ -228,9 +269,9 @@ const NodeInterfaceView = Components.NodeInterface;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid #4fc3f7;
-  background: #4fc3f7;
-  color: #101418;
+  border: 1px solid hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
   font-size: 12px;
   font-weight: 700;
   line-height: 14px;
@@ -240,8 +281,8 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 3px rgba(79, 195, 247, 0.4); }
-  50% { box-shadow: 0 0 10px rgba(79, 195, 247, 0.9), 0 0 20px rgba(79, 195, 247, 0.4); }
+  0%, 100% { box-shadow: 0 0 3px hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 10px hsl(var(--primary) / 0.8), 0 0 20px hsl(var(--primary) / 0.3); }
 }
 
 @media (max-width: 768px) {
@@ -271,12 +312,12 @@ const NodeInterfaceView = Components.NodeInterface;
 
 .port-area.left {
   grid-area: left;
-  border-right: 1px solid #000;
+  border-right: 1px solid hsl(var(--border));
 }
 
 .port-area.right {
   grid-area: right;
-  border-left: 1px solid #000;
+  border-left: 1px solid hsl(var(--border));
 }
 
 .node-content {
@@ -310,7 +351,7 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 .label {
-  color: #111;
+  color: hsl(var(--muted-fg));
   white-space: nowrap;
 }
 
@@ -324,14 +365,22 @@ const NodeInterfaceView = Components.NodeInterface;
 
 .title-input {
   width: 100%;
-  border: 1px solid #4fc3f7;
-  background: #101418;
-  color: #fff;
-  border-radius: 4px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-radius: calc(var(--radius) - 2px);
   font-size: 14px;
   font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
   padding: 4px 6px;
   text-align: center;
+  transition: border-color 0.15s;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
 }
 
 .delete-btn {
@@ -342,9 +391,9 @@ const NodeInterfaceView = Components.NodeInterface;
   aspect-ratio: 1;
   flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid #4fc3f7;
-  background: #101418;
-  color: #fff;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -353,10 +402,13 @@ const NodeInterfaceView = Components.NodeInterface;
   justify-content: center;
   box-sizing: border-box;
   padding: 0;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .delete-btn:hover {
-  background: #1b2a33;
+  background: hsl(var(--destructive) / 0.1);
+  border-color: hsl(var(--destructive));
+  color: hsl(var(--destructive));
 }
 
 .details-row {
@@ -369,17 +421,23 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 .details-input {
-  background: #101418;
-  border: 1px solid #4fc3f7;
-  color: #fff;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   font-size: 11px;
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   width: 100%;
   min-height: 120px;
   flex: 1;
   outline: none;
   resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.details-input:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
 }
 
 :deep(.__port) {
