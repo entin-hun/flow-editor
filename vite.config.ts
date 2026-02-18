@@ -8,5 +8,11 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:5175",
     },
+    allowedHosts: [
+      "flow.trace.market",
+      "www.flow.trace.market",
+      "localhost",
+      "127.0.0.1",
+    ],
   },
 })

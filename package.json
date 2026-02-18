@@ -14,6 +14,7 @@
     "@baklavajs/plugin-engine": "^1.10.2",
     "@baklavajs/plugin-renderer-vue": "^1.10.2",
     "@baklavajs/renderer-vue": "^2.8.1",
+    "@base-org/account": "^2.5.2",
     "@reown/appkit": "^1.8.17",
     "@reown/appkit-adapter-ethers": "^1.8.17",
     "@reown/appkit-controllers": "^1.8.17",
