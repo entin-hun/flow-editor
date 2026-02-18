@@ -143,15 +143,15 @@ const getPortStyle = (side: Location): CSSProperties => {
 const getAddButtonStyle = (side: Location) => {
   const base = getPortStyle(side);
   if (side === "left") {
-    return { ...base, left: "-12px" };
+    return { ...base, left: "-14px", zIndex: 100 };
   }
   if (side === "right") {
-    return { ...base, left: "calc(100% + 12px)" };
+    return { ...base, left: "calc(100% + 14px)", zIndex: 100 };
   }
   if (side === "top") {
-    return { ...base, top: "-12px" };
+    return { ...base, top: "-14px", zIndex: 100 };
   }
-  return { ...base, top: "calc(100% + 12px)" };
+  return { ...base, top: "calc(100% + 14px)", zIndex: 100 };
 };
 
 const NodeInterfaceView = Components.NodeInterface;
@@ -291,17 +291,18 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 .add-port-btn {
-  width: 16px;
-  height: 16px;
+  width: 27px;
+  height: 27px;
   border-radius: 50%;
   border: 1px solid hsl(var(--primary));
   background: hsl(var(--primary));
   color: hsl(var(--primary-fg));
-  font-size: 12px;
+  font-size: 20px;
   font-weight: 700;
-  line-height: 14px;
+  line-height: 24px;
   padding: 0;
   cursor: pointer;
+  z-index: 100;
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
@@ -312,10 +313,10 @@ const NodeInterfaceView = Components.NodeInterface;
 
 @media (max-width: 768px) {
   .add-port-btn {
-    width: 20px;
-    height: 20px;
-    font-size: 14px;
-    line-height: 18px;
+    width: 34px;
+    height: 34px;
+    font-size: 24px;
+    line-height: 31px;
   }
 
   .title-input {
