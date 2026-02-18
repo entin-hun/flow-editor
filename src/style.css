@@ -1,0 +1,114 @@
+:root {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Hide BaklavaJS sidebar */
+:deep(.baklava-sidebar) {
+  display: none !important;
+}
+
+/* Ensure editor takes full width without sidebar */
+:deep(.baklava-editor) {
+  width: 100% !important;
+  grid-template-columns: 1fr !important;
+}
+
+:deep(.baklava-connection) {
+  color: var(--baklava-color-connection-default);
+  marker-mid: url(#connection-arrow);
+  marker-end: url(#connection-arrow);
+}
+
+/* Hide toolbar with subgraph commands */
+:deep(.baklava-toolbar) {
+  display: none !important;
+}
+
+/* Hide subgraph input/output nodes from being added */
+:deep(.baklava-node-palette) {
+  display: none !important;
+}
+
+/* Fix ResourceNode width - override BaklavaJS default full-width */
+:deep([data-node-type="ResourceNode"]) {
+  width: auto !important;
+  max-width: 200px !important;
+}
+
+:deep([data-node-type="ResourceNode"] .baklava-node) {
+  width: auto !important;
+  max-width: 200px !important;
+}
+
+.baklava-node > .__title,
+.baklava-node > .__title > .__title-label,
+.baklava-node > .__title > .__menu {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.baklava-editor .background,
+.baklava-editor .connections-container {
+  pointer-events: none;
+}
+
+.baklava-editor .node-container {
+  pointer-events: none;
+}
+
+.baklava-editor .node-container .baklava-node {
+  pointer-events: auto;
+}
+
+/* Aggressively hide all subgraph-related nodes */
+:deep(.node-subgraph-input),
+:deep(.node-subgraph-output),
+:deep([data-node-type="SubgraphInputNode"]),
+:deep([data-node-type="SubgraphOutputNode"]),
+:deep([data-node-type="__baklava_SubgraphInputNode"]),
+:deep([data-node-type="__baklava_SubgraphOutputNode"]),
+:deep([class*="subgraph-input"]),
+:deep([class*="subgraph-output"]),
+:deep([class*="SubgraphInput"]),
+:deep([class*="SubgraphOutput"]) {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Hide any node with "Subgraph" in title */
+:deep(.baklava-node:has([title*="Subgraph"])) {
+  display: none !important;
+}
+
+/* Hide category "Subgraphs" from node palette */
+:deep(.node-palette-category):has([data-category="Subgraphs"]) {
+  display: none !important;
+}
