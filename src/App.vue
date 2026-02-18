@@ -917,6 +917,20 @@ const autoArrangeNodes = () => {
       processX + processRect.width / 2
     );
     const mechanismX = maxRowRight + mechanismGap;
+
+    // Normalise mechanism column: give energy/gas/water the same width as the
+    // widest sibling so the column stays visually uniform in portrait mode.
+    if (mechanisms.length > 0) {
+      const mechWidths = mechanisms.map((n) => getNodeSize(n, { width: 200, height: 120 }).width);
+      const maxMechWidth = Math.max(...mechWidths);
+      mechanisms.forEach((n) => {
+        const resType = (n as any).resourceType as string;
+        if (["energy", "gas", "water"].includes(resType)) {
+          (n as any).width = maxMechWidth;
+        }
+      });
+    }
+
     placeColumnRight(mechanisms, mechanismX, processY);
 
     if (debugEnabled) {

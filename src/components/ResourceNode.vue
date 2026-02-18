@@ -456,7 +456,7 @@ const NodeInterfaceView = Components.NodeInterface;
   padding: 8px 12px;
   min-width: 100px;
   max-width: 200px;
-  width: auto;
+  width: var(--width, auto);
   cursor: move;
   position: relative;
   gap: 8px;
