@@ -349,10 +349,6 @@ const handleSaveFlow = async () => {
   }
 };
 
-const startReownLogin = () => {
-  openReownModal();
-};
-
 // Configure editor options - disable sidebar, toolbar, and palette
 baklava.settings.sidebar.enabled = false;
 baklava.settings.sidebar.resizable = false;
@@ -762,8 +758,8 @@ const autoArrangeNodes = () => {
     });
   }
 
-  const processNodes = nodes.filter((n) => n.type === "ProcessNode");
-  const resourceNodes = nodes.filter((n) => n.type === "ResourceNode");
+  const processNodes = nodes.filter((n) => n.type === "ProcessNode") as ProcessNode[];
+  const resourceNodes = nodes.filter((n) => n.type === "ResourceNode") as ResourceNode[];
 
   const getNodeSize = (node: any, fallback: { width: number; height: number }) => {
     const el = document.getElementById(node.id);
@@ -818,8 +814,8 @@ const autoArrangeNodes = () => {
 
     const interfaceNodeMap = new Map<NodeInterface<unknown>, any>();
     nodes.forEach((node: any) => {
-      Object.values(node.inputs || {}).forEach((intf: NodeInterface<unknown>) => interfaceNodeMap.set(intf, node));
-      Object.values(node.outputs || {}).forEach((intf: NodeInterface<unknown>) => interfaceNodeMap.set(intf, node));
+      (Object.values(node.inputs || {}) as NodeInterface<unknown>[]).forEach((intf) => interfaceNodeMap.set(intf, node));
+      (Object.values(node.outputs || {}) as NodeInterface<unknown>[]).forEach((intf) => interfaceNodeMap.set(intf, node));
     });
 
     const inputGroups = new Map<ProcessNode, ResourceNode[]>();
@@ -855,7 +851,7 @@ const autoArrangeNodes = () => {
       if (!items.length) return;
       let currentX = centerXPos - metrics.totalWidth / 2;
       items.forEach((node, index) => {
-        const size = metrics.sizes[index];
+        const size = metrics.sizes[index]!;
         setPos(node, currentX, y);
         currentX += size.width + rowGap;
       });
@@ -867,7 +863,7 @@ const autoArrangeNodes = () => {
       const totalHeight = sizes.reduce((sum, size) => sum + size.height, 0) + Math.max(0, items.length - 1) * columnGap;
       let currentY = centerYPos - totalHeight / 2;
       items.forEach((node, index) => {
-        const size = sizes[index];
+        const size = sizes[index]!;
         setPos(node, x, currentY);
         currentY += size.height + columnGap;
       });
@@ -956,27 +952,14 @@ const autoArrangeNodes = () => {
   const mechanismGap = 40;
   const primaryProcess = mainProcess || processNodes[0];
   const processSize = primaryProcess ? getNodeSize(primaryProcess, { width: 200, height: 180 }) : { width: 200, height: 180 };
-  const processLeft = centerX - processSize.width / 2;
   const processRight = centerX + processSize.width / 2;
   const processTop = centerY - processSize.height / 2 - 40;
   const processBottom = centerY + processSize.height / 2 - 40;
 
-  const stackVertically = (items: any[]) => {
-    const sizes = items.map((node) => getNodeSize(node, { width: 200, height: 120 }));
-    const totalHeight = sizes.reduce((sum, size) => sum + size.height, 0) + Math.max(0, items.length - 1) * verticalGap;
-    let currentY = centerY - totalHeight / 2;
-    return items.map((node, index) => {
-      const size = sizes[index];
-      const y = currentY;
-      currentY += size.height + verticalGap;
-      return { node, size, y };
-    });
-  };
-
   const interfaceNodeMap = new Map<NodeInterface<unknown>, any>();
   nodes.forEach((node: any) => {
-    Object.values(node.inputs || {}).forEach((intf: NodeInterface<unknown>) => interfaceNodeMap.set(intf, node));
-    Object.values(node.outputs || {}).forEach((intf: NodeInterface<unknown>) => interfaceNodeMap.set(intf, node));
+    (Object.values(node.inputs || {}) as NodeInterface<unknown>[]).forEach((intf) => interfaceNodeMap.set(intf, node));
+    (Object.values(node.outputs || {}) as NodeInterface<unknown>[]).forEach((intf) => interfaceNodeMap.set(intf, node));
   });
 
   const inputGroups = new Map<ProcessNode, ResourceNode[]>();
@@ -1000,7 +983,7 @@ const autoArrangeNodes = () => {
     let currentY = processY - totalHeight / 2;
     let bottom = currentY;
     items.forEach((node, index) => {
-      const size = sizes[index];
+      const size = sizes[index]!;
       const x = processX - processRect.width / 2 - offsetFromProcess - size.width;
       const y = currentY;
       setPos(node, x, y);
@@ -1039,7 +1022,7 @@ const autoArrangeNodes = () => {
     const top = currentY;
     let bottom = currentY;
     items.forEach((node, index) => {
-      const size = sizes[index];
+      const size = sizes[index]!;
       const x = processX + processRect.width / 2 + offsetFromProcess;
       const y = currentY;
       setPos(node, x, y);
@@ -1067,7 +1050,7 @@ const autoArrangeNodes = () => {
   const bottomRowY = Math.max(processBottom + 20, bottomRowTarget);
 
   mechanisms.forEach((node, index) => {
-    const size = mechSizes[index];
+    const size = mechSizes[index]!;
     const x = currentX;
     const y = bottomRowY;
     setPos(node, x, y);
@@ -1082,7 +1065,7 @@ const autoArrangeNodes = () => {
     const totalHeight = sizes.reduce((sum, size) => sum + size.height, 0) + Math.max(0, sizes.length - 1) * processColumnGap;
     let currentY = centerY - totalHeight / 2 - 40;
     secondaryProcesses.forEach((node, index) => {
-      const size = sizes[index];
+      const size = sizes[index]!;
       const x = columnCenterX - size.width / 2;
       const y = currentY;
       setPos(node, x, y);
