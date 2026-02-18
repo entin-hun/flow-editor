@@ -306,8 +306,8 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 3px hsl(var(--primary) / 0.3); }
-  50% { box-shadow: 0 0 10px hsl(var(--primary) / 0.8), 0 0 20px hsl(var(--primary) / 0.3); }
+  0%, 100% { box-shadow: 0 0 5px hsl(var(--primary) / 1); }
+  50% { box-shadow: 0 0 17px hsl(var(--primary) / 1), 0 0 34px hsl(var(--primary) / 1); }
 }
 
 @media (max-width: 768px) {

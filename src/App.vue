@@ -1280,23 +1280,34 @@ watch(
           <ul>
             <li>Drag nodes by their center title area</li>
             <li>Connect ports by dragging from one port to another</li>
-            <li>Click "Auto-Arrange" button to organize layout</li>
+            <li>Click <strong>Auto-Arrange</strong> to organize the layout automatically</li>
+            <li>Click <strong>Save</strong> to store your flow (sign in required)</li>
           </ul>
         </div>
         <div class="instruction-section">
-          <h3>Node Structure (IDEF0)</h3>
+          <h3>Node Types (IDEF0)</h3>
           <ul>
-            <li><strong>Process Node:</strong> Central manufacturing step</li>
-            <li><strong>Resource Nodes:</strong> Inputs, Outputs, Machines, Energy</li>
-            <li><strong>Layout:</strong> Resources automatically position around processes</li>
+            <li><strong>Process Node:</strong> Central activity box — add inputs on the left, outputs on the right, controls on top, mechanisms on the bottom via the glowing <strong>+</strong> buttons</li>
+            <li><strong>Input / Output:</strong> Material or information flowing in or out of the process</li>
+            <li><strong>Machine / Energy / Gas / Water:</strong> Supporting resources connected at the bottom of the process</li>
+            <li><strong>Service / Property:</strong> Additional mechanism resources</li>
           </ul>
         </div>
         <div class="instruction-section">
-          <h3>Controls</h3>
+          <h3>Editing</h3>
+          <ul>
+            <li>Click any node title or field to edit it inline</li>
+            <li>Use the glowing <strong>+</strong> buttons on a Process node to add new ports</li>
+            <li>The <strong>✕</strong> delete button is visible only when the node has no connections</li>
+            <li>Delete a connection by clicking it and pressing <kbd>Delete</kbd></li>
+          </ul>
+        </div>
+        <div class="instruction-section">
+          <h3>Navigation</h3>
           <ul>
             <li>Pan: Click and drag on empty canvas</li>
             <li>Zoom: Mouse wheel or pinch gesture</li>
-            <li>Delete: Select node/connection and press Delete</li>
+            <li>Portrait / mobile: layout switches to vertical automatically</li>
           </ul>
         </div>
         <button class="got-it-btn" @click="showInstructions = false">Got it!</button>
