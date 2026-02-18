@@ -1599,11 +1599,11 @@ watch(
   background: #1f1f1f;
   color: #fff;
   font-size: 13px;
-  min-width: 120px;
+  min-width: 72px;
 }
 
 .save-input--phone {
-  min-width: 85px;
+  min-width: 43px;
 }
 
 .save-input:focus {
@@ -1696,11 +1696,11 @@ watch(
   }
 
   .save-input {
-    min-width: 100px;
+    min-width: 60px;
   }
 
   .save-input--phone {
-    min-width: 75px;
+    min-width: 38px;
   }
 
   .save-error {

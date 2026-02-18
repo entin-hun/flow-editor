@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import type { CSSProperties } from "vue";
 import type { AbstractNode, NodeInterface } from "@baklavajs/core";
 import { Components } from "@baklavajs/renderer-vue";
 
@@ -48,14 +49,40 @@ watch(
 const readLocation = (intf: NodeInterface<unknown>) =>
   (intf as NodeInterface<unknown> & { data?: PortMeta }).data?.location;
 
+/** Detect portrait / vertical screen orientation */
+const isVertical = ref(false);
+const updateOrientation = () => {
+  isVertical.value = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+};
+onMounted(() => {
+  updateOrientation();
+  window.addEventListener("resize", updateOrientation);
+});
+onUnmounted(() => {
+  window.removeEventListener("resize", updateOrientation);
+});
+
+/**
+ * In portrait mode, remap process-node port sides:
+ *   left (inputs)     → top
+ *   right (outputs)   → bottom
+ *   bottom (mechanisms) → right
+ *   top (controls)    → right
+ */
+const remapSide = (side: Location): Location => {
+  if (!isVertical.value) return side;
+  const map: Record<Location, Location> = { left: "top", right: "bottom", bottom: "right", top: "right" };
+  return map[side] ?? side;
+};
+
 const inputPorts = computed(() => Object.values(props.node.inputs).filter((intf) => readLocation(intf) === "left"));
 const outputPorts = computed(() => Object.values(props.node.outputs).filter((intf) => readLocation(intf) === "right"));
 const mechanismPorts = computed(() => Object.values(props.node.inputs).filter((intf) => readLocation(intf) === "bottom"));
 
-const getPortStyle = (side: Location) => {
+const getPortStyle = (side: Location): CSSProperties => {
   if (side === "left") {
     return {
-      position: "absolute",
+      position: "absolute" as const,
       left: "0%",
       top: "50%",
       transform: "translate(-50%, -50%)",
@@ -64,15 +91,24 @@ const getPortStyle = (side: Location) => {
 
   if (side === "right") {
     return {
-      position: "absolute",
+      position: "absolute" as const,
       left: "100%",
       top: "50%",
       transform: "translate(-50%, -50%)",
     };
   }
 
+  if (side === "top") {
+    return {
+      position: "absolute" as const,
+      left: "50%",
+      top: "0%",
+      transform: "translate(-50%, -50%)",
+    };
+  }
+
   return {
-    position: "absolute",
+    position: "absolute" as const,
     left: "50%",
     top: "100%",
     transform: "translate(-50%, -50%)",
@@ -87,6 +123,9 @@ const getAddButtonStyle = (side: Location) => {
   if (side === "right") {
     return { ...base, left: "calc(100% + 12px)" };
   }
+  if (side === "top") {
+    return { ...base, top: "-12px" };
+  }
   return { ...base, top: "calc(100% + 12px)" };
 };
 
@@ -100,13 +139,13 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('left')"
+      :style="getPortStyle(remapSide('left'))"
     />
     <button
       class="add-port-btn"
       type="button"
       title="Add input"
-      :style="getAddButtonStyle('left')"
+      :style="getAddButtonStyle(remapSide('left'))"
       @click.stop="props.onAddInput?.()"
     >
       +
@@ -117,13 +156,13 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('right')"
+      :style="getPortStyle(remapSide('right'))"
     />
     <button
       class="add-port-btn"
       type="button"
       title="Add output"
-      :style="getAddButtonStyle('right')"
+      :style="getAddButtonStyle(remapSide('right'))"
       @click.stop="props.onAddOutput?.()"
     >
       +
@@ -157,13 +196,13 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('bottom')"
+      :style="getPortStyle(remapSide('bottom'))"
     />
     <button
       class="add-port-btn"
       type="button"
       title="Add mechanism"
-      :style="getAddButtonStyle('bottom')"
+      :style="getAddButtonStyle(remapSide('bottom'))"
       @click.stop="props.onAddMechanism?.()"
     >
       +

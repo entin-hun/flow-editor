@@ -71,8 +71,7 @@ body {
 }
 
 .baklava-editor .background {
-  pointer-events: none;
-  z-index: 0;
+  display: none !important;
 }
 
 .baklava-editor .node-container {

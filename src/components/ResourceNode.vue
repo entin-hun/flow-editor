@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Components } from "@baklavajs/renderer-vue";
 import type { AbstractNode, NodeInterface } from "@baklavajs/core";
 
@@ -166,6 +166,32 @@ watch(
 const readLocation = (intf: NodeInterface<unknown>) =>
   (intf as NodeInterface<unknown> & { data?: PortMeta }).data?.location;
 
+/** Detect portrait / vertical screen orientation */
+const isVertical = ref(false);
+const updateOrientation = () => {
+  isVertical.value = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+};
+onMounted(() => {
+  updateOrientation();
+  window.addEventListener("resize", updateOrientation);
+});
+onUnmounted(() => {
+  window.removeEventListener("resize", updateOrientation);
+});
+
+/**
+ * In portrait mode, remap resource-node port sides:
+ *   right (input outputs)     → bottom  (face process top from above)
+ *   left  (output inputs)     → top     (face process bottom from below)
+ *   top   (mechanism outputs) → left    (face process right from the right side)
+ *   bottom                    → bottom  (no change)
+ */
+const remapSide = (side: Location): Location => {
+  if (!isVertical.value) return side;
+  const map: Record<Location, Location> = { right: "bottom", left: "top", top: "left", bottom: "bottom" };
+  return map[side] ?? side;
+};
+
 const allPorts = computed(() => [...Object.values(props.node.inputs), ...Object.values(props.node.outputs)]);
 const leftPorts = computed(() => allPorts.value.filter((intf) => readLocation(intf) === "left"));
 const rightPorts = computed(() => allPorts.value.filter((intf) => readLocation(intf) === "right"));
@@ -247,7 +273,7 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('left', index, leftPorts.length)"
+      :style="getPortStyle(remapSide('left'), index, leftPorts.length)"
     />
 
     <NodeInterfaceView
@@ -255,7 +281,7 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('right', index, rightPorts.length)"
+      :style="getPortStyle(remapSide('right'), index, rightPorts.length)"
       @pointerdown.capture="handleOutputPointerDown($event, intf)"
       @pointerup.capture="handleOutputPointerUp($event, intf)"
     />
@@ -265,7 +291,7 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('top', index, topPorts.length)"
+      :style="getPortStyle(remapSide('top'), index, topPorts.length)"
     />
 
     <NodeInterfaceView
@@ -273,7 +299,7 @@ const NodeInterfaceView = Components.NodeInterface;
       :key="intf.id"
       :node="node"
       :intf="intf"
-      :style="getPortStyle('bottom', index, bottomPorts.length)"
+      :style="getPortStyle(remapSide('bottom'), index, bottomPorts.length)"
     />
 
     <div class="resource-title">
