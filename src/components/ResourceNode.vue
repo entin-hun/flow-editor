@@ -450,9 +450,9 @@ const NodeInterfaceView = Components.NodeInterface;
 .resource-node {
   display: flex;
   align-items: center;
-  background: #2a2a2a;
-  border: 2px solid #4fc3f7;
-  border-radius: 6px;
+  background: hsl(var(--card));
+  border: 1.5px solid hsl(var(--primary));
+  border-radius: var(--radius);
   padding: 8px 12px;
   min-width: 100px;
   max-width: 200px;
@@ -461,11 +461,12 @@ const NodeInterfaceView = Components.NodeInterface;
   position: relative;
   gap: 8px;
   flex-wrap: wrap;
+  box-shadow: var(--shadow-md);
 }
 
 .resource-node.selected {
-  border-color: #81d4fa;
-  box-shadow: 0 0 8px rgba(79, 195, 247, 0.5);
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.2), var(--shadow-md);
 }
 
 .resource-node:active {
@@ -475,7 +476,7 @@ const NodeInterfaceView = Components.NodeInterface;
 .resource-title {
   flex: 1;
   text-align: center;
-  color: #fff;
+  color: hsl(var(--foreground));
   font-size: 11px;
   font-weight: 600;
   padding: 0 8px;
@@ -489,14 +490,22 @@ const NodeInterfaceView = Components.NodeInterface;
 
 .title-input {
   width: 100%;
-  background: #101418;
-  border: 1px solid #4fc3f7;
-  color: #fff;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   font-size: 12px;
   font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   text-align: center;
+  transition: border-color 0.15s;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
 }
 
 .delete-btn {
@@ -507,9 +516,9 @@ const NodeInterfaceView = Components.NodeInterface;
   aspect-ratio: 1;
   flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid #4fc3f7;
-  background: #101418;
-  color: #fff;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -518,10 +527,13 @@ const NodeInterfaceView = Components.NodeInterface;
   justify-content: center;
   box-sizing: border-box;
   padding: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .delete-btn:hover {
-  background: #1b2a33;
+  background: hsl(var(--destructive) / 0.1);
+  border-color: hsl(var(--destructive));
+  color: hsl(var(--destructive));
 }
 
 .resource-fields {
@@ -536,49 +548,62 @@ const NodeInterfaceView = Components.NodeInterface;
   flex-direction: column;
   gap: 2px;
   font-size: 10px;
-  color: #d7ecf7;
+  color: hsl(var(--foreground));
 }
 
 .field-label {
   font-weight: 600;
-  color: #9fd9f2;
+  color: hsl(var(--muted-fg));
 }
 
 .field-value {
   background: transparent;
-  border: 1px dashed #4fc3f7;
-  color: #fff;
+  border: 1px dashed hsl(var(--primary) / 0.5);
+  color: hsl(var(--foreground));
   font-size: 10px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   text-align: left;
   cursor: text;
+  transition: background 0.12s;
 }
 
 .field-value:hover {
-  background: rgba(79, 195, 247, 0.15);
+  background: hsl(var(--primary) / 0.07);
 }
 
 .field-input {
-  background: #101418;
-  border: 1px solid #4fc3f7;
-  color: #fff;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   font-size: 10px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   outline: none;
+  transition: border-color 0.15s;
+}
+
+.field-input:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
 }
 
 .field-textarea {
-  background: #101418;
-  border: 1px solid #4fc3f7;
-  color: #fff;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   font-size: 10px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   outline: none;
   resize: vertical;
   min-height: 40px;
+  transition: border-color 0.15s;
+}
+
+.field-textarea:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
 }
 
 .resource-node :deep(.baklava-node-interface) {

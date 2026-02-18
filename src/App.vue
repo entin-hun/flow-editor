@@ -442,7 +442,7 @@ const installConnectionMarkers = () => {
 
   const arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   arrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-  arrowPath.setAttribute("fill", "#4fc3f7");
+  arrowPath.setAttribute("fill", "hsl(152, 76%, 42%)");
 
   marker.appendChild(arrowPath);
   defs.appendChild(marker);
@@ -514,7 +514,7 @@ const updateConnectionArrows = () => {
     const arrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     arrow.setAttribute("class", "connection-arrow-overlay");
     arrow.setAttribute("points", "-10,-8 10,0 -10,8");
-    arrow.setAttribute("fill", "#4fc3f7");
+    arrow.setAttribute("fill", "hsl(152, 76%, 42%)");
     arrow.setAttribute("transform", `translate(${mx},${my}) rotate(${angle})`);
     arrow.style.pointerEvents = "none";
     svg.appendChild(arrow);
@@ -1429,40 +1429,42 @@ watch(
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background: hsl(160 30% 10% / 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
 
 .instructions-panel {
-  background: #1e1e1e;
-  color: #e0e0e0;
-  border: 2px solid #444;
-  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 12px;
   padding: 24px;
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-lg);
   position: relative;
 }
 
 .instructions-panel h2 {
   margin: 0 0 20px 0;
-  font-size: 24px;
-  color: #fff;
+  font-size: 22px;
+  font-family: 'Space Grotesk', sans-serif;
+  color: hsl(var(--primary));
   text-align: center;
-  border-bottom: 2px solid #444;
+  border-bottom: 1.5px solid hsl(var(--border));
   padding-bottom: 12px;
 }
 
 .instructions-panel h3 {
   margin: 16px 0 8px 0;
-  font-size: 16px;
-  color: #4fc3f7;
+  font-size: 15px;
+  font-family: 'Space Grotesk', sans-serif;
+  color: hsl(var(--accent));
 }
 
 .instruction-section {
@@ -1479,10 +1481,11 @@ watch(
   margin: 6px 0;
   font-size: 14px;
   line-height: 1.5;
+  color: hsl(var(--foreground));
 }
 
 .instructions-panel strong {
-  color: #fff;
+  color: hsl(var(--primary));
   font-weight: 600;
 }
 
@@ -1490,65 +1493,65 @@ watch(
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: #444;
-  color: #fff;
-  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .close-btn:hover {
-  background: #666;
+  background: hsl(var(--muted));
 }
 
 .got-it-btn {
   display: block;
   width: 100%;
   margin-top: 20px;
-  padding: 12px;
-  background: #4fc3f7;
-  color: #000;
+  padding: 11px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
   border: none;
-  border-radius: 4px;
-  font-size: 16px;
+  border-radius: var(--radius);
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .got-it-btn:hover {
-  background: #81d4fa;
+  background: hsl(var(--accent));
 }
 
 .help-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border-radius: 50%;
-  background: #4fc3f7;
-  color: #000;
-  border: 2px solid #000;
-  font-size: 24px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
+  border: none;
+  font-size: 22px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s;
   flex-shrink: 0;
 }
 
 .help-btn:hover {
-  background: #81d4fa;
-  transform: scale(1.1);
+  background: hsl(var(--accent));
+  transform: scale(1.08);
 }
 
 .save-toolbar {
@@ -1562,44 +1565,47 @@ watch(
 }
 
 .save-btn {
-  padding: 8px 14px;
-  background: #4fc3f7;
-  color: #000;
-  border: 2px solid #000;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 7px 14px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s;
+  box-shadow: var(--shadow-md);
+  transition: all 0.15s;
 }
 
 .save-btn:hover {
-  background: #81d4fa;
+  background: hsl(var(--accent));
   transform: translateY(-1px);
 }
 
 .save-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: default;
+  transform: none;
 }
 
 .save-status {
-  padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  border-radius: 10px;
+  padding: 5px 10px;
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-fg));
+  border: 1px solid hsl(var(--border));
+  border-radius: 20px;
   font-size: 12px;
 }
 
 .save-input {
   padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #4a4a4a;
-  background: #1f1f1f;
-  color: #fff;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
   font-size: 13px;
   min-width: 72px;
+  box-shadow: inset 0 1px 2px hsl(160 30% 10% / 0.04);
 }
 
 .save-input--phone {
@@ -1608,14 +1614,15 @@ watch(
 
 .save-input:focus {
   outline: none;
-  border-color: #4fc3f7;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
 }
 
 .save-error {
   position: fixed;
   top: 56px;
   right: 16px;
-  color: #ff8a80;
+  color: hsl(var(--destructive));
   font-size: 12px;
   z-index: 1000;
 }
@@ -1625,26 +1632,26 @@ watch(
   position: fixed;
   top: 16px;
   left: 16px;
-  padding: 10px 16px;
-  background: #4fc3f7;
-  color: #000;
-  border: 2px solid #000;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 9px 14px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .arrange-btn:hover {
-  background: #81d4fa;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  background: hsl(var(--accent));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
 }
 
 .arrange-btn:active {
@@ -1665,7 +1672,7 @@ watch(
   }
 
   .instructions-panel h2 {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   .instructions-panel h3 {
@@ -1680,12 +1687,10 @@ watch(
     width: 36px;
     height: 36px;
     font-size: 20px;
-    top: 12px;
-    right: 12px;
   }
 
   .save-btn {
-    padding: 8px 12px;
+    padding: 7px 11px;
     font-size: 12px;
   }
 

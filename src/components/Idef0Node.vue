@@ -219,14 +219,16 @@ const NodeInterfaceView = Components.NodeInterface;
   width: 200px;
   max-width: 200px;
   padding: 10px;
-  background: #2a2a2a;
-  border: 2px solid #4fc3f7;
-  border-radius: 6px;
+  background: hsl(var(--card));
+  border: 1.5px solid hsl(var(--primary));
+  border-radius: var(--radius);
   position: relative;
+  box-shadow: var(--shadow-md);
 }
 
 .idef0-node.selected {
-  border-color: #111;
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.2), var(--shadow-md);
 }
 
 .port-area {
@@ -240,14 +242,14 @@ const NodeInterfaceView = Components.NodeInterface;
   grid-area: top;
   justify-content: center;
   flex-wrap: wrap;
-  border-bottom: 1px solid #000;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .port-area.bottom {
   grid-area: bottom;
   justify-content: center;
   flex-wrap: wrap;
-  border-top: 1px solid #000;
+  border-top: 1px solid hsl(var(--border));
 }
 
 .idef0-node :deep(.baklava-node-interface) {
@@ -267,9 +269,9 @@ const NodeInterfaceView = Components.NodeInterface;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid #4fc3f7;
-  background: #4fc3f7;
-  color: #101418;
+  border: 1px solid hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
   font-size: 12px;
   font-weight: 700;
   line-height: 14px;
@@ -279,8 +281,8 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 3px rgba(79, 195, 247, 0.4); }
-  50% { box-shadow: 0 0 10px rgba(79, 195, 247, 0.9), 0 0 20px rgba(79, 195, 247, 0.4); }
+  0%, 100% { box-shadow: 0 0 3px hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 10px hsl(var(--primary) / 0.8), 0 0 20px hsl(var(--primary) / 0.3); }
 }
 
 @media (max-width: 768px) {
@@ -310,12 +312,12 @@ const NodeInterfaceView = Components.NodeInterface;
 
 .port-area.left {
   grid-area: left;
-  border-right: 1px solid #000;
+  border-right: 1px solid hsl(var(--border));
 }
 
 .port-area.right {
   grid-area: right;
-  border-left: 1px solid #000;
+  border-left: 1px solid hsl(var(--border));
 }
 
 .node-content {
@@ -349,7 +351,7 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 .label {
-  color: #111;
+  color: hsl(var(--muted-fg));
   white-space: nowrap;
 }
 
@@ -363,14 +365,22 @@ const NodeInterfaceView = Components.NodeInterface;
 
 .title-input {
   width: 100%;
-  border: 1px solid #4fc3f7;
-  background: #101418;
-  color: #fff;
-  border-radius: 4px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-radius: calc(var(--radius) - 2px);
   font-size: 14px;
   font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
   padding: 4px 6px;
   text-align: center;
+  transition: border-color 0.15s;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
 }
 
 .delete-btn {
@@ -381,9 +391,9 @@ const NodeInterfaceView = Components.NodeInterface;
   aspect-ratio: 1;
   flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid #4fc3f7;
-  background: #101418;
-  color: #fff;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -392,10 +402,13 @@ const NodeInterfaceView = Components.NodeInterface;
   justify-content: center;
   box-sizing: border-box;
   padding: 0;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .delete-btn:hover {
-  background: #1b2a33;
+  background: hsl(var(--destructive) / 0.1);
+  border-color: hsl(var(--destructive));
+  color: hsl(var(--destructive));
 }
 
 .details-row {
@@ -408,17 +421,23 @@ const NodeInterfaceView = Components.NodeInterface;
 }
 
 .details-input {
-  background: #101418;
-  border: 1px solid #4fc3f7;
-  color: #fff;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   font-size: 11px;
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 2px);
   width: 100%;
   min-height: 120px;
   flex: 1;
   outline: none;
   resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.details-input:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
 }
 
 :deep(.__port) {
