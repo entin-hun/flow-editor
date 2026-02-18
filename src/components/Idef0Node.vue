@@ -229,12 +229,38 @@ const NodeInterfaceView = Components.NodeInterface;
   height: 16px;
   border-radius: 50%;
   border: 1px solid #4fc3f7;
-  background: #101418;
-  color: #fff;
+  background: #4fc3f7;
+  color: #101418;
   font-size: 12px;
+  font-weight: 700;
   line-height: 14px;
   padding: 0;
   cursor: pointer;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 3px rgba(79, 195, 247, 0.4); }
+  50% { box-shadow: 0 0 10px rgba(79, 195, 247, 0.9), 0 0 20px rgba(79, 195, 247, 0.4); }
+}
+
+@media (max-width: 768px) {
+  .add-port-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  .title-input {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  .details-input {
+    min-height: 140px;
+    font-size: 12px;
+  }
 }
 
 .port-area.left,
@@ -311,13 +337,22 @@ const NodeInterfaceView = Components.NodeInterface;
 .delete-btn {
   width: 22px;
   height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  aspect-ratio: 1;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid #4fc3f7;
   background: #101418;
   color: #fff;
   font-size: 14px;
-  line-height: 20px;
+  line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
 }
 
 .delete-btn:hover {

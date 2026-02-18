@@ -7,16 +7,376 @@ import Idef0Node from "./components/Idef0Node.vue";
 import ResourceNodeVue from "./components/ResourceNode.vue";
 import { ProcessNode } from "./nodes/ProcessNode";
 import { ResourceNode } from "./nodes/ResourceNode";
+import { getStoredAuthToken, getStoredEmail, initReownAppKit, openReownModal } from "./services/reownAppkit";
 
 const baklava = useBaklava();
 const showInstructions = ref(false); // Start with instructions hidden
 const debugEnabled = false;
+const saveStatus = ref("");
+const isSaving = ref(false);
+const currentFlowId = ref<string | null>(null);
+const suppressAutoArrange = ref(false);
+const authToken = ref<string | null>(null);
+const pendingSave = ref(false);
+const draftStorageKey = "flow-editor-draft";
+const contactEmailStorageKey = "flow-editor-contact-email";
+const contactPhoneStorageKey = "flow-editor-contact-phone";
+const contactEmail = ref("");
+const contactPhone = ref("");
+const saveError = ref("");
+
+const FLOW_API_BASE = import.meta.env.VITE_FLOW_API_BASE || "";
+
+const getAuthToken = () => authToken.value || getStoredAuthToken();
+const readStoredEmail = () => getStoredEmail() || "";
+
+// Restore contact fields from localStorage
+const restoreContactFields = () => {
+  if (typeof window === "undefined") return;
+  const storedEmail = window.localStorage.getItem(contactEmailStorageKey);
+  if (storedEmail) {
+    contactEmail.value = storedEmail;
+  }
+  const storedPhone = window.localStorage.getItem(contactPhoneStorageKey);
+  if (storedPhone) {
+    contactPhone.value = storedPhone;
+  }
+};
+
+// Setup watchers for auto-save on field changes.
+// NOTE: Do NOT use { immediate: true } — it fires during setup with the
+// initial "" value, which calls removeItem and deletes the stored values
+// BEFORE restoreContactFields() can read them in onMounted().
+watch(
+  () => contactEmail.value,
+  (newEmail) => {
+    if (typeof window === "undefined") return;
+    if (newEmail?.trim()) {
+      window.localStorage.setItem(contactEmailStorageKey, newEmail.trim());
+    } else {
+      window.localStorage.removeItem(contactEmailStorageKey);
+    }
+  }
+);
+
+watch(
+  () => contactPhone.value,
+  (newPhone) => {
+    if (typeof window === "undefined") return;
+    if (newPhone?.trim()) {
+      window.localStorage.setItem(contactPhoneStorageKey, newPhone.trim());
+    } else {
+      window.localStorage.removeItem(contactPhoneStorageKey);
+    }
+  }
+);
+
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const parseFlowIdFromUrl = () => {
+  if (typeof window === "undefined") return null;
+  const match = window.location.pathname.match(/^\/s\/([^/]+)$/);
+  return match ? match[1] : null;
+};
+
+const updateUrlWithId = (id: string) => {
+  if (typeof window === "undefined") return;
+  const nextPath = `/s/${id}`;
+  if (window.location.pathname !== nextPath) {
+    window.history.replaceState({}, "", nextPath);
+  }
+};
+
+type SavedNodeMeta = {
+  id: string;
+  type: string;
+  title?: string;
+  position: { x: number; y: number };
+  resourceType?: string;
+  fields?: Record<string, unknown>;
+  details?: string;
+};
+
+type FlowPayload = {
+  version: number;
+  graph: any;
+  nodes: SavedNodeMeta[];
+  view?: { scaling?: number; panning?: { x: number; y: number } };
+  contact?: { email?: string; phone?: string };
+  updatedAt: string;
+};
+
+const buildFlowPayload = (): FlowPayload => {
+  const graph = baklava.displayedGraph;
+  const nodes = graph.nodes.map((node: any) => {
+    const meta: SavedNodeMeta = {
+      id: node.id,
+      type: node.type,
+      title: node.title,
+      position: { x: node.position.x, y: node.position.y },
+    };
+
+    if (node.type === "ResourceNode") {
+      meta.resourceType = node.resourceType;
+      meta.fields = node.fields;
+    }
+
+    if (node.type === "ProcessNode") {
+      meta.details = node.details;
+    }
+
+    return meta;
+  });
+
+  return {
+    version: 1,
+    graph: graph.save(),
+    nodes,
+    view: {
+      scaling: graph.scaling,
+      panning: graph.panning ? { x: graph.panning.x, y: graph.panning.y } : undefined,
+    },
+    contact: {
+      email: contactEmail.value.trim() || undefined,
+      phone: contactPhone.value.trim() || undefined,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+const storeDraftToSession = () => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(draftStorageKey, JSON.stringify(buildFlowPayload()));
+};
+
+const restoreDraftFromSession = () => {
+  if (typeof window === "undefined") return false;
+  const raw = window.sessionStorage.getItem(draftStorageKey);
+  if (!raw) return false;
+  try {
+    const payload = JSON.parse(raw) as FlowPayload;
+    applyFlowPayload(payload);
+    return true;
+  } catch (error) {
+    console.warn("[Flow] Failed to restore draft", error);
+    return false;
+  } finally {
+    window.sessionStorage.removeItem(draftStorageKey);
+  }
+};
+
+const applyFlowPayload = (payload: FlowPayload) => {
+  const graph = baklava.displayedGraph;
+  suppressAutoArrange.value = true;
+
+  // Enrich graph node states with metadata from payload.nodes
+  // so that node.load() can restore resourceType, portMeta, etc.
+  // This covers both old saves (no resourceType in graph state) and new saves.
+  const metaById = new Map(payload.nodes.map((meta) => [meta.id, meta]));
+  const enrichedGraph = { ...payload.graph };
+  if (enrichedGraph.nodes && Array.isArray(enrichedGraph.nodes)) {
+    enrichedGraph.nodes = enrichedGraph.nodes.map((nodeState: any) => {
+      const meta = metaById.get(nodeState.id);
+      if (!meta) return nodeState;
+      const enriched = { ...nodeState };
+      if (meta.resourceType && !enriched.resourceType) {
+        enriched.resourceType = meta.resourceType;
+      }
+      if (meta.fields && !enriched.fields) {
+        enriched.fields = meta.fields;
+      }
+      if (meta.details !== undefined && enriched.details === undefined) {
+        enriched.details = meta.details;
+      }
+      return enriched;
+    });
+  }
+
+  // Ensure graph state has required arrays before loading
+  if (!enrichedGraph.nodes) enrichedGraph.nodes = [];
+  if (!enrichedGraph.connections) enrichedGraph.connections = [];
+
+  graph.load(enrichedGraph);
+
+  graph.nodes.forEach((node: any) => {
+    const meta = metaById.get(node.id);
+    if (!meta) return;
+    if (meta.title) node.title = meta.title;
+    if (meta.position) {
+      node.position.x = meta.position.x;
+      node.position.y = meta.position.y;
+      setNodePosition(node, meta.position.x, meta.position.y);
+    }
+    if (node.type === "ResourceNode") {
+      node.resourceType = meta.resourceType ?? node.resourceType;
+      node.fields = meta.fields ?? node.fields;
+    }
+    if (node.type === "ProcessNode") {
+      node.details = meta.details ?? node.details;
+    }
+  });
+
+  if (payload.view?.scaling) {
+    graph.scaling = payload.view.scaling;
+  }
+  if (payload.view?.panning) {
+    graph.panning = { x: payload.view.panning.x, y: payload.view.panning.y } as any;
+  }
+
+  if (payload.contact?.email && !contactEmail.value.trim()) {
+    // Only use backend email if localStorage doesn't have a newer value
+    const localEmail = window.localStorage.getItem(contactEmailStorageKey);
+    contactEmail.value = localEmail || payload.contact.email;
+  }
+  if (payload.contact?.phone && !contactPhone.value.trim()) {
+    // Only use backend phone if localStorage doesn't have a newer value
+    const localPhone = window.localStorage.getItem(contactPhoneStorageKey);
+    contactPhone.value = localPhone || payload.contact.phone;
+  }
+
+  // Nodes need time to render in DOM before BaklavaJS can compute
+  // port coordinates for connections. Use multiple retries with increasing delays.
+  const scheduleRefresh = () => {
+    suppressAutoArrange.value = false;
+    const delays = [0, 50, 150, 400, 800];
+    delays.forEach((delay) => {
+      setTimeout(() => {
+        refreshConnectionCoords();
+        updateConnectionArrows();
+      }, delay);
+    });
+  };
+  nextTick(scheduleRefresh);
+};
+
+const loadFlowById = async (id: string) => {
+  const response = await fetch(`${FLOW_API_BASE}/api/flows/${id}`);
+  if (!response.ok) {
+    saveStatus.value = "Failed to load flow";
+    return;
+  }
+  const payload = (await response.json()) as FlowPayload;
+  applyFlowPayload(payload);
+};
+
+const handleSaveFlow = async () => {
+  if (isSaving.value) return;
+  saveError.value = "";
+  const trimmedPhone = contactPhone.value.trim();
+  if (!trimmedPhone) {
+    saveError.value = "Phone number is required.";
+    return;
+  }
+
+  if (!contactEmail.value.trim()) {
+    const storedEmail = readStoredEmail();
+    if (storedEmail) {
+      contactEmail.value = storedEmail;
+    }
+  }
+
+  if (!contactEmail.value.trim()) {
+    const token = getAuthToken();
+    if (!currentFlowId.value && !token) {
+      pendingSave.value = true;
+      storeDraftToSession();
+      await openReownModal();
+      return;
+    }
+    saveError.value = "Email is required.";
+    return;
+  }
+
+  if (!isValidEmail(contactEmail.value.trim())) {
+    saveError.value = "Enter a valid email address.";
+    return;
+  }
+
+  const token = getAuthToken();
+  if (!currentFlowId.value && !token) {
+    pendingSave.value = true;
+    storeDraftToSession();
+    await openReownModal();
+    return;
+  }
+
+  try {
+    isSaving.value = true;
+    saveStatus.value = "Saving...";
+    const payload = buildFlowPayload();
+    const isUpdate = Boolean(currentFlowId.value);
+    const endpoint = isUpdate ? `/api/flows/${currentFlowId.value}` : "/api/flows";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(`${FLOW_API_BASE}${endpoint}`, {
+      method: isUpdate ? "PUT" : "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      saveStatus.value = "Save failed";
+      return;
+    }
+
+    const result = await response.json();
+    if (!isUpdate && result?.id) {
+      currentFlowId.value = result.id;
+      updateUrlWithId(result.id);
+    }
+    saveStatus.value = "Saved";
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(draftStorageKey);
+    }
+  } catch (error) {
+    console.error(error);
+    if (error instanceof DOMException && error.name === "AbortError") {
+      saveStatus.value = "Save timed out";
+    } else {
+      saveStatus.value = "Save failed";
+    }
+  } finally {
+    isSaving.value = false;
+    setTimeout(() => {
+      if (saveStatus.value === "Saved") saveStatus.value = "";
+    }, 2000);
+  }
+};
+
+const startReownLogin = () => {
+  openReownModal();
+};
 
 // Configure editor options - disable sidebar, toolbar, and palette
 baklava.settings.sidebar.enabled = false;
 baklava.settings.sidebar.resizable = false;
 baklava.settings.toolbar.enabled = false; // Disable toolbar with subgraph commands
 baklava.settings.palette.enabled = false; // Disable node palette
+baklava.settings.useStraightConnections = true; // Straight lines instead of bezier curves
+
+const applyMobileSettings = () => {
+  if (typeof window === "undefined") return;
+  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  const isNarrow = window.matchMedia("(max-width: 768px)").matches;
+  if (!isTouch && !isNarrow) return;
+
+  baklava.settings.panZoom.minScale = 0.3;
+  baklava.settings.panZoom.maxScale = 2.5;
+  baklava.settings.background.gridSize = 80;
+  baklava.settings.background.gridDivision = 4;
+  baklava.settings.nodes.resizable = false;
+  baklava.settings.nodes.defaultWidth = 200;
+  baklava.settings.nodes.minWidth = 160;
+  baklava.settings.nodes.maxWidth = 260;
+};
+
+applyMobileSettings();
 
 baklava.editor.registerNodeType(ProcessNode, {
   category: "Trace Market",
@@ -57,31 +417,108 @@ const logGraphState = (label: string) => {
 };
 
 const installConnectionMarkers = () => {
-  const svg = document.querySelector(".connections-container svg") as SVGSVGElement | null;
+  // .connections-container IS the <svg> element (not a wrapper div)
+  const svg = document.querySelector(".connections-container") as SVGSVGElement | null;
   if (!svg) return false;
 
   const existing = svg.querySelector("#connection-arrow") as SVGMarkerElement | null;
   if (existing) return true;
 
-  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    svg.prepend(defs);
+  }
+
   const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
   marker.setAttribute("id", "connection-arrow");
   marker.setAttribute("viewBox", "0 0 10 10");
-  marker.setAttribute("refX", "8");
+  marker.setAttribute("refX", "5");
   marker.setAttribute("refY", "5");
-  marker.setAttribute("markerWidth", "8");
-  marker.setAttribute("markerHeight", "8");
-  marker.setAttribute("markerUnits", "strokeWidth");
+  marker.setAttribute("markerWidth", "6");
+  marker.setAttribute("markerHeight", "6");
+  marker.setAttribute("markerUnits", "userSpaceOnUse");
   marker.setAttribute("orient", "auto");
 
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-  path.setAttribute("fill", "currentColor");
+  const arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  arrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+  arrowPath.setAttribute("fill", "#4fc3f7");
 
-  marker.appendChild(path);
+  marker.appendChild(arrowPath);
   defs.appendChild(marker);
-  svg.prepend(defs);
   return true;
+};
+
+/**
+ * Calculate the midpoint and tangent angle of a cubic bezier at t=0.5
+ */
+const bezierMidpoint = (x1: number, y1: number, cx1: number, cy1: number, cx2: number, cy2: number, x2: number, y2: number) => {
+  const t = 0.5;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const mt3 = mt2 * mt;
+
+  const mx = mt3 * x1 + 3 * mt2 * t * cx1 + 3 * mt * t2 * cx2 + t3 * x2;
+  const my = mt3 * y1 + 3 * mt2 * t * cy1 + 3 * mt * t2 * cy2 + t3 * y2;
+
+  // Tangent at t=0.5
+  const dx = 3 * mt2 * (cx1 - x1) + 6 * mt * t * (cx2 - cx1) + 3 * t2 * (x2 - cx2);
+  const dy = 3 * mt2 * (cy1 - y1) + 6 * mt * t * (cy2 - cy1) + 3 * t2 * (y2 - cy2);
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+  return { mx, my, angle };
+};
+
+/**
+ * Parse a connection path.
+ * Cubic bezier: "M x1 y1 C cx1 cy1, cx2 cy2, x2 y2" → 8 numbers
+ * Straight line: "M x1 y1 L x2 y2" → 4 numbers (control points = endpoints)
+ */
+const parseBezierPath = (d: string) => {
+  const nums = d.match(/-?[\d.]+/g);
+  if (!nums) return null;
+  if (nums.length >= 8) {
+    return nums.slice(0, 8).map(Number) as [number, number, number, number, number, number, number, number];
+  }
+  if (nums.length >= 4) {
+    // Straight line: treat as bezier with control points at endpoints
+    const [x1, y1, x2, y2] = nums.map(Number);
+    return [x1, y1, x1, y1, x2, y2, x2, y2] as [number, number, number, number, number, number, number, number];
+  }
+  return null;
+};
+
+/**
+ * Update arrow overlays at the midpoint of each connection path.
+ * Called after node positions change.
+ */
+const updateConnectionArrows = () => {
+  const svg = document.querySelector(".connections-container") as SVGSVGElement | null;
+  if (!svg) return;
+
+  // Remove stale arrows
+  svg.querySelectorAll(".connection-arrow-overlay").forEach((el) => el.remove());
+
+  const paths = svg.querySelectorAll<SVGPathElement>(".baklava-connection");
+  paths.forEach((pathEl) => {
+    const d = pathEl.getAttribute("d");
+    if (!d) return;
+    const coords = parseBezierPath(d);
+    if (!coords) return;
+
+    const [x1, y1, cx1, cy1, cx2, cy2, x2, y2] = coords;
+    const { mx, my, angle } = bezierMidpoint(x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    arrow.setAttribute("class", "connection-arrow-overlay");
+    arrow.setAttribute("points", "-10,-8 10,0 -10,8");
+    arrow.setAttribute("fill", "#4fc3f7");
+    arrow.setAttribute("transform", `translate(${mx},${my}) rotate(${angle})`);
+    arrow.style.pointerEvents = "none";
+    svg.appendChild(arrow);
+  });
 };
 
 const ensureDemoConnections = () => {
@@ -205,6 +642,8 @@ const refreshConnectionCoords = () => {
       graph.nodes.forEach((node) => {
         setNodePosition(node as any, node.position.x - epsilon, node.position.y - epsilon);
       });
+      // Update arrows after positions settle
+      requestAnimationFrame(() => updateConnectionArrows());
     });
   });
 };
@@ -277,6 +716,36 @@ const addMechanismPort = (process: ProcessNode) => {
   refreshConnectionCoords();
 };
 
+const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknown>) => {
+  const graph = baklava.displayedGraph;
+  if (!graph || !resource || !intf) return;
+
+  const processCount = graph.nodes.filter((n) => n.type === "ProcessNode").length;
+  const process = graph.addNode(new ProcessNode());
+  if (!process) return;
+
+  (process as any).title = `Process ${processCount + 1}`;
+  const processInput = Object.values(process.inputs).find((port) => getMeta(port)?.location === "left") as
+    | NodeInterface<unknown>
+    | undefined;
+
+  if (processInput) {
+    graph.addConnection(intf, processInput);
+  }
+
+  const resourceEl = document.getElementById(resource.id);
+  const resourceRect = resourceEl ? resourceEl.getBoundingClientRect() : null;
+  const scale = graph.scaling || 1;
+  const resourceWidth = resourceRect ? resourceRect.width / scale : 200;
+  const x = resource.position.x + resourceWidth + 60;
+  const y = resource.position.y;
+  process.position.x = x;
+  process.position.y = y;
+  setNodePosition(process as any, x, y);
+  autoArrangeNodes();
+  refreshConnectionCoords();
+};
+
 const autoArrangeNodes = () => {
   const graph = baklava.displayedGraph;
   const nodes = graph.nodes;
@@ -319,8 +788,149 @@ const autoArrangeNodes = () => {
     }
   };
 
+  const isPortrait = window.innerHeight > window.innerWidth;
+
+  if (isPortrait) {
+    const mainProcess = processNodes.find((node) => node.title === "Process") || processNodes[0];
+
+    if (mainProcess) {
+      const size = getNodeSize(mainProcess, { width: 200, height: 180 });
+      const x = centerX - size.width / 2;
+      const y = centerY - size.height / 2 - 20;
+      setPos(mainProcess, x, y);
+    }
+
+    const inputs: ResourceNode[] = [];
+    const outputs: ResourceNode[] = [];
+    const mechanisms: ResourceNode[] = [];
+
+    resourceNodes.forEach((resNode) => {
+      const resType = (resNode as any).resourceType;
+      if (resType === "input") inputs.push(resNode as ResourceNode);
+      else if (resType === "output") outputs.push(resNode as ResourceNode);
+      else mechanisms.push(resNode as ResourceNode);
+    });
+
+    const offsetFromProcess = 180;
+    const mechanismGap = 90;
+    const rowGap = 20;
+    const columnGap = 20;
+
+    const interfaceNodeMap = new Map<NodeInterface<unknown>, any>();
+    nodes.forEach((node: any) => {
+      Object.values(node.inputs || {}).forEach((intf: NodeInterface<unknown>) => interfaceNodeMap.set(intf, node));
+      Object.values(node.outputs || {}).forEach((intf: NodeInterface<unknown>) => interfaceNodeMap.set(intf, node));
+    });
+
+    const inputGroups = new Map<ProcessNode, ResourceNode[]>();
+    inputs.forEach((inputNode) => {
+      const outputIntf = Object.values(inputNode.outputs || {})[0] as NodeInterface<unknown> | undefined;
+      const connection = graph.connections.find((c) => c.from === outputIntf);
+      const owner = connection ? interfaceNodeMap.get(connection.to) : mainProcess;
+      const ownerProcess = (owner && owner.type === "ProcessNode") ? (owner as ProcessNode) : mainProcess;
+      if (!ownerProcess) return;
+      if (!inputGroups.has(ownerProcess)) inputGroups.set(ownerProcess, []);
+      inputGroups.get(ownerProcess)?.push(inputNode);
+    });
+
+    const outputGroups = new Map<ProcessNode, ResourceNode[]>();
+    outputs.forEach((outputNode) => {
+      const inputIntf = Object.values(outputNode.inputs || {})[0] as NodeInterface<unknown> | undefined;
+      const connection = graph.connections.find((c) => c.to === inputIntf);
+      const owner = connection ? interfaceNodeMap.get(connection.from) : mainProcess;
+      const ownerProcess = (owner && owner.type === "ProcessNode") ? (owner as ProcessNode) : mainProcess;
+      if (!ownerProcess) return;
+      if (!outputGroups.has(ownerProcess)) outputGroups.set(ownerProcess, []);
+      outputGroups.get(ownerProcess)?.push(outputNode);
+    });
+
+    const getRowMetrics = (items: any[], fallback: { width: number; height: number } = { width: 200, height: 120 }) => {
+      const sizes = items.map((node) => getNodeSize(node, fallback));
+      const totalWidth = sizes.reduce((sum, size) => sum + size.width, 0) + Math.max(0, items.length - 1) * rowGap;
+      const maxHeight = sizes.reduce((max, size) => Math.max(max, size.height), 0);
+      return { sizes, totalWidth, maxHeight };
+    };
+
+    const placeRowFromMetrics = (items: any[], metrics: { sizes: { width: number; height: number }[]; totalWidth: number }, centerXPos: number, y: number) => {
+      if (!items.length) return;
+      let currentX = centerXPos - metrics.totalWidth / 2;
+      items.forEach((node, index) => {
+        const size = metrics.sizes[index];
+        setPos(node, currentX, y);
+        currentX += size.width + rowGap;
+      });
+    };
+
+    const placeColumnRight = (items: ResourceNode[], x: number, centerYPos: number) => {
+      if (!items.length) return;
+      const sizes = items.map((node) => getNodeSize(node, { width: 200, height: 120 }));
+      const totalHeight = sizes.reduce((sum, size) => sum + size.height, 0) + Math.max(0, items.length - 1) * columnGap;
+      let currentY = centerYPos - totalHeight / 2;
+      items.forEach((node, index) => {
+        const size = sizes[index];
+        setPos(node, x, currentY);
+        currentY += size.height + columnGap;
+      });
+    };
+
+    const processRect = mainProcess ? getNodeSize(mainProcess, { width: 200, height: 180 }) : { width: 200, height: 180 };
+    const processX = mainProcess ? mainProcess.position.x + processRect.width / 2 : centerX;
+    const processY = mainProcess ? mainProcess.position.y + processRect.height / 2 : centerY;
+
+    const inputGroup = mainProcess ? (inputGroups.get(mainProcess) || []) : [];
+    const inputMetrics = getRowMetrics(inputGroup);
+    const inputRowY = processY - processRect.height / 2 - offsetFromProcess - inputMetrics.maxHeight;
+    placeRowFromMetrics(inputGroup, inputMetrics, processX, inputRowY);
+
+    const outputGroup = mainProcess ? (outputGroups.get(mainProcess) || []) : [];
+    const outputMetrics = getRowMetrics(outputGroup);
+    const outputRowY = processY + processRect.height / 2 + offsetFromProcess;
+    placeRowFromMetrics(outputGroup, outputMetrics, processX, outputRowY);
+
+    const secondaryProcesses = processNodes.filter((node) => node !== mainProcess);
+    if (secondaryProcesses.length > 0) {
+      const secondaryInputsMax = Math.max(
+        0,
+        ...secondaryProcesses.map((node) => getRowMetrics(inputGroups.get(node as ProcessNode) || []).maxHeight)
+      );
+      const outputsBottom = outputRowY + outputMetrics.maxHeight;
+      const secondaryRowY = outputsBottom + offsetFromProcess + secondaryInputsMax + 40;
+      const secondaryMetrics = getRowMetrics(secondaryProcesses as any[], { width: 200, height: 180 });
+      placeRowFromMetrics(secondaryProcesses as any[], secondaryMetrics, processX, secondaryRowY);
+
+      secondaryProcesses.forEach((processNode) => {
+        const procSize = getNodeSize(processNode, { width: 200, height: 180 });
+        const procX = processNode.position.x + procSize.width / 2;
+        const procY = processNode.position.y + procSize.height / 2;
+
+        const procOutputs = outputGroups.get(processNode as ProcessNode) || [];
+        const procOutputsMetrics = getRowMetrics(procOutputs);
+        const procOutputY = procY + procSize.height / 2 + offsetFromProcess;
+        placeRowFromMetrics(procOutputs, procOutputsMetrics, procX, procOutputY);
+
+        const procInputs = inputGroups.get(processNode as ProcessNode) || [];
+        const procInputsMetrics = getRowMetrics(procInputs);
+        const procInputY = procY - procSize.height / 2 - offsetFromProcess - procInputsMetrics.maxHeight;
+        placeRowFromMetrics(procInputs, procInputsMetrics, procX, procInputY);
+      });
+    }
+
+    const maxRowRight = Math.max(
+      processX + inputMetrics.totalWidth / 2,
+      processX + outputMetrics.totalWidth / 2,
+      processX + processRect.width / 2
+    );
+    const mechanismX = maxRowRight + mechanismGap;
+    placeColumnRight(mechanisms, mechanismX, processY);
+
+    if (debugEnabled) {
+      console.groupEnd();
+    }
+    refreshConnectionCoords();
+    return;
+  }
+
   const mainProcess = processNodes.find((node) => node.title === "Process") || processNodes[0];
-  const wasteProcess = processNodes.find((node) => node.title === "Hulladékkezelés");
 
   if (mainProcess) {
     const size = getNodeSize(mainProcess, { width: 200, height: 180 });
@@ -464,16 +1074,26 @@ const autoArrangeNodes = () => {
     currentX += size.width + mechanismGap;
   });
 
-  if (wasteProcess) {
-    const size = getNodeSize(wasteProcess, { width: 200, height: 180 });
-    const x = Math.max(outputColumnRight + 220, centerX + 520) - size.width / 2;
-    const y = centerY - size.height / 2 - 40;
-    setPos(wasteProcess, x, y);
+  const secondaryProcesses = processNodes.filter((node) => node !== mainProcess);
+  if (secondaryProcesses.length > 0) {
+    const processColumnGap = 40;
+    const columnCenterX = Math.max(outputColumnRight + 220, centerX + 520);
+    const sizes = secondaryProcesses.map((node) => getNodeSize(node, { width: 200, height: 180 }));
+    const totalHeight = sizes.reduce((sum, size) => sum + size.height, 0) + Math.max(0, sizes.length - 1) * processColumnGap;
+    let currentY = centerY - totalHeight / 2 - 40;
+    secondaryProcesses.forEach((node, index) => {
+      const size = sizes[index];
+      const x = columnCenterX - size.width / 2;
+      const y = currentY;
+      setPos(node, x, y);
+      currentY += size.height + processColumnGap;
+    });
   }
 
   if (debugEnabled) {
     console.groupEnd();
   }
+  refreshConnectionCoords();
 };
 
 const handleAutoArrange = () => {
@@ -484,16 +1104,57 @@ const handleAutoArrange = () => {
 let markerObserver: MutationObserver | null = null;
 
 onMounted(() => {
+  authToken.value = getStoredAuthToken();
+  
+  // Restore contact fields from localStorage
+  restoreContactFields();
+  
+  initReownAppKit((token) => {
+    authToken.value = token;
+    if (!contactEmail.value.trim()) {
+      const storedEmail = readStoredEmail();
+      if (storedEmail) {
+        contactEmail.value = storedEmail;
+      }
+    }
+    if (pendingSave.value) {
+      pendingSave.value = false;
+      restoreDraftFromSession();
+      setTimeout(() => {
+        handleSaveFlow();
+      }, 0);
+    }
+  }).catch((error) => console.error(error));
+
+  const initialFlowId = parseFlowIdFromUrl();
+  if (initialFlowId) {
+    currentFlowId.value = initialFlowId;
+  }
+
   const tryInstall = () => {
     if (installConnectionMarkers()) return;
     requestAnimationFrame(tryInstall);
   };
 
   tryInstall();
-  markerObserver = new MutationObserver(() => installConnectionMarkers());
+  let arrowUpdateTimer: number | null = null;
+  markerObserver = new MutationObserver(() => {
+    installConnectionMarkers();
+    // Throttle arrow updates to avoid excessive DOM work
+    if (arrowUpdateTimer) cancelAnimationFrame(arrowUpdateTimer);
+    arrowUpdateTimer = requestAnimationFrame(() => updateConnectionArrows());
+  });
   markerObserver.observe(document.body, { childList: true, subtree: true });
 
   const graph = baklava.displayedGraph;
+  if (currentFlowId.value) {
+    loadFlowById(currentFlowId.value).catch((error) => console.error(error));
+    return;
+  }
+  if (restoreDraftFromSession()) {
+    nextTick(() => refreshConnectionCoords());
+    return;
+  }
   if (graph.nodes.length > 0) {
     const wired = ensureDemoConnections();
     if (wired) {
@@ -527,15 +1188,15 @@ onMounted(() => {
 
 
   // Set titles
-  (input1 as any).title = "Steel Sheet";
-  (input2 as any).title = "Paint";
-  (machine as any).title = "Machine";
-  (energy as any).title = "Electricity";
+  (input1 as any).title = "Fő összetevő";
+  (input2 as any).title = "Csomagolás";
+  (machine as any).title = "Géphasználat";
+  (energy as any).title = "Villany (kWh)";
   (gas as any).title = "Gáz (m3)";
   (water as any).title = "Víz (m3)";
   (service as any).title = "Szolgáltatás";
   (property as any).title = "Ingatlan";
-  manufacturingNode.title = "Process";
+  manufacturingNode.title = "Folyamat";
   wasteNode.title = "Hulladékkezelés";
   (output1 as any).title = "Főtermék";
   (output2 as any).title = "Melléktermék";
@@ -602,6 +1263,7 @@ onUnmounted(() => {
 watch(
   () => [baklava.displayedGraph.nodes.length, baklava.displayedGraph.connections.length],
   () => {
+    if (suppressAutoArrange.value) return;
     logGraphState("watch-change");
     setTimeout(() => autoArrangeNodes(), 50);
     setTimeout(() => refreshConnectionCoords(), 100);
@@ -642,7 +1304,32 @@ watch(
       </div>
     </div>
 
-    <button v-else class="help-btn" @click="showInstructions = true" title="Show instructions">?</button>
+    <div class="save-toolbar">
+      <button v-if="!showInstructions" class="help-btn" @click="showInstructions = true" title="Show instructions">?</button>
+      <button class="save-btn" @click="handleSaveFlow" :disabled="isSaving" title="Save flow">
+        {{ isSaving ? "Saving..." : "Save" }}
+      </button>
+      <input
+        id="save-email"
+        v-model="contactEmail"
+        class="save-input"
+        type="email"
+        placeholder="Email"
+        autocomplete="email"
+        aria-label="Email address"
+      />
+      <input
+        id="save-phone"
+        v-model="contactPhone"
+        class="save-input save-input--phone"
+        type="tel"
+        placeholder="Phone"
+        autocomplete="tel"
+        aria-label="Phone number"
+      />
+      <span v-if="saveStatus" class="save-status">{{ saveStatus }}</span>
+    </div>
+    <div v-if="saveError" class="save-error">{{ saveError }}</div>
     <button v-if="false" class="arrange-btn" @click="handleAutoArrange" title="Auto-arrange nodes">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="7" height="7" />
@@ -694,7 +1381,11 @@ watch(
             <template #title></template>
             <template #nodeInterface></template>
             <template #content>
-              <ResourceNodeVue :node="node" :on-delete="() => deleteNode(node as ResourceNode)" />
+              <ResourceNodeVue
+                :node="node"
+                :on-delete="() => deleteNode(node as ResourceNode)"
+                :on-output-connector="(intf) => addProcessFromOutput(node as ResourceNode, intf)"
+              />
             </template>
           </Components.Node>
         </template>
@@ -710,6 +1401,7 @@ watch(
         </template>
       </template>
     </BaklavaEditor>
+
   </div>
 </template>
 
@@ -836,11 +1528,9 @@ watch(
 }
 
 .help-btn {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border-radius: 50%;
   background: #4fc3f7;
   color: #000;
@@ -848,18 +1538,88 @@ watch(
   font-size: 24px;
   font-weight: bold;
   cursor: pointer;
-  z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .help-btn:hover {
   background: #81d4fa;
   transform: scale(1.1);
 }
+
+.save-toolbar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.save-btn {
+  padding: 8px 14px;
+  background: #4fc3f7;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
+}
+
+.save-btn:hover {
+  background: #81d4fa;
+  transform: translateY(-1px);
+}
+
+.save-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.save-status {
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.save-input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #4a4a4a;
+  background: #1f1f1f;
+  color: #fff;
+  font-size: 13px;
+  min-width: 120px;
+}
+
+.save-input--phone {
+  min-width: 85px;
+}
+
+.save-input:focus {
+  outline: none;
+  border-color: #4fc3f7;
+}
+
+.save-error {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  color: #ff8a80;
+  font-size: 12px;
+  z-index: 1000;
+}
+
 
 .arrange-btn {
   position: fixed;
@@ -921,6 +1681,30 @@ watch(
     height: 36px;
     font-size: 20px;
     top: 12px;
+    right: 12px;
+  }
+
+  .save-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .save-toolbar {
+    top: 12px;
+    right: 12px;
+    flex-wrap: wrap;
+  }
+
+  .save-input {
+    min-width: 100px;
+  }
+
+  .save-input--phone {
+    min-width: 75px;
+  }
+
+  .save-error {
+    top: 68px;
     right: 12px;
   }
 }

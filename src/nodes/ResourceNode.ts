@@ -28,6 +28,10 @@ export class ResourceNode extends Node<Record<string, unknown>, Record<string, u
     (this as any).width = 200;
     (this as any).twoColumn = false;
     
+    this.initInterfaces(resourceType);
+  }
+
+  private initInterfaces(resourceType: ResourceType) {
     switch (resourceType) {
       case "input":
         this.title = "Input Material";
@@ -71,6 +75,28 @@ export class ResourceNode extends Node<Record<string, unknown>, Record<string, u
         this.addResourceOutput("Property", "top");
         break;
     }
+  }
+
+  public save() {
+    return {
+      ...super.save(),
+      resourceType: this.resourceType,
+      fields: this.fields,
+    };
+  }
+
+  public load(state: ReturnType<ResourceNode["save"]> & Record<string, unknown>) {
+    // If resourceType differs from default, rebuild interfaces to match saved state
+    const savedType = (state as any).resourceType as ResourceType | undefined;
+    if (savedType && savedType !== this.resourceType) {
+      // Clear constructor-created interfaces directly (safe: node not in graph yet)
+      this.inputs = {};
+      this.outputs = {};
+      this.resourceType = savedType;
+      this.initInterfaces(savedType);
+    }
+    super.load(state);
+    if ((state as any).fields) this.fields = (state as any).fields;
   }
   
   private addResourceOutput(name: string, location: Location = "right"): NodeInterface<unknown> {

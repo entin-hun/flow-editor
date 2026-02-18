@@ -1,0 +1,494 @@
+{
+  "version": 1,
+  "graph": {
+    "id": "3fdb8526-c9f4-415d-8517-6f309f8e38d0",
+    "nodes": [
+      {
+        "type": "ResourceNode",
+        "id": "8e45f7c1-9ab2-478f-bf29-a1e01d28c6d5",
+        "title": "Steel Sheet",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "457d7201-9554-490c-ab9a-12ab3f934b68",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 127.99999999999999,
+          "y": 271
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "290ab01b-dfa8-4921-bf87-8c9489a38764",
+        "title": "csomagoló",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "c3512fed-8560-48ed-a197-07c90ba906dc",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 127.99999999999999,
+          "y": 491
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "cdf9eb9f-3102-448c-906f-03873b499bdb",
+        "title": "Machine",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "147b4e5a-4de8-40be-ade4-9dfb8015407a",
+            "value": null
+          }
+        },
+        "position": {
+          "x": -36.5,
+          "y": 691
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "ef52e33d-ae68-4d48-92b5-96f919c2302a",
+        "title": "Electricity",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "56aaf322-7316-493d-8f87-00a9c8e3cf50",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 203.5,
+          "y": 691
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "944f5343-b1aa-4181-a4e8-afb8a957b6b5",
+        "title": "Gáz (m3)",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "2e063c8e-e146-400a-b8a7-476bedb390df",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 443.5,
+          "y": 691
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "e5d689d6-a6bb-48aa-a672-58d919b0990f",
+        "title": "Víz (m3)",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "67339acc-cfb9-427a-9d35-9294b784edca",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 683.5,
+          "y": 691
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "9698801c-ae5a-4b58-af1f-f92e5bd71de3",
+        "title": "Szolgáltatás",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "ba6fa604-bef1-4238-b0c9-90aa4c35ed0d",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 923.5,
+          "y": 691
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "90b3db94-72c4-4bbd-add7-1bc6772df315",
+        "title": "Ingatlan",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "fce06327-9905-4d23-b711-1d4fd03da65e",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 1163.5,
+          "y": 691
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ProcessNode",
+        "id": "382076fb-4ca0-4290-81f1-1f9716c4d64f",
+        "title": "Process",
+        "inputs": {
+          "inputinstance_material": {
+            "id": "714cb411-33b9-4226-8123-8601a934d7b9",
+            "value": null
+          },
+          "inputinstance_quantity": {
+            "id": "5e651d1d-6af4-4ad7-9f33-db053e535b48",
+            "value": null
+          },
+          "machineinstance_category": {
+            "id": "ab305618-c2a2-4bcd-ba94-842da7bf8410",
+            "value": null
+          },
+          "machineinstance_quantity": {
+            "id": "c1a0c5f0-e5b6-4830-b880-52066308bba3",
+            "value": null
+          },
+          "serviceinstance_gas": {
+            "id": "c0f66163-f47f-4d16-9a0b-4a1039aa052f",
+            "value": null
+          },
+          "serviceinstance_water": {
+            "id": "193c70ca-7d0e-47b3-ae9f-87c59c120a86",
+            "value": null
+          },
+          "serviceinstance_service": {
+            "id": "818695ac-418c-4bc4-b330-77a15940e982",
+            "value": null
+          },
+          "serviceinstance_property": {
+            "id": "20d0d22c-8d5c-4a48-bad1-95643df20df9",
+            "value": null
+          }
+        },
+        "outputs": {
+          "output_mainproduct": {
+            "id": "bb69aff6-6508-41f7-8f68-217c97149b41",
+            "value": null
+          },
+          "output_byproduct": {
+            "id": "ba8d603b-ddd9-4b0c-a5a9-8cc20b5c13fa",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 548,
+          "y": 382
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ProcessNode",
+        "id": "c6004065-a0ad-4d46-bf30-0b4986bb53a5",
+        "title": "Hulladékkezelés",
+        "inputs": {
+          "inputinstance_material": {
+            "id": "7434c251-9a66-48c3-862a-ae5654608e4a",
+            "value": null
+          },
+          "inputinstance_quantity": {
+            "id": "26e9714b-40bf-4d7a-89bd-044b97720c24",
+            "value": null
+          },
+          "machineinstance_category": {
+            "id": "25c83a79-fc39-42b5-b56f-94162c5c1ece",
+            "value": null
+          },
+          "machineinstance_quantity": {
+            "id": "7e576ca4-eb58-4bc5-b534-b672013926c4",
+            "value": null
+          },
+          "serviceinstance_gas": {
+            "id": "e4de2295-075e-4866-ab46-e57626c953e9",
+            "value": null
+          },
+          "serviceinstance_water": {
+            "id": "4fc2975d-4d2c-4434-925f-03fcff529919",
+            "value": null
+          },
+          "serviceinstance_service": {
+            "id": "088a6a57-31c3-48ac-84df-d878cadc7fc7",
+            "value": null
+          },
+          "serviceinstance_property": {
+            "id": "1eed5827-b122-46c0-beb4-d21faea04b9d",
+            "value": null
+          }
+        },
+        "outputs": {
+          "output_mainproduct": {
+            "id": "774d70ce-49ec-4c06-8a4f-858aa62e4f24",
+            "value": null
+          },
+          "output_byproduct": {
+            "id": "df12465b-03d3-40bd-b33e-69d570b01f7f",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 1288,
+          "y": 382
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "55605502-f333-4bf7-b6b0-1724fa7b58ea",
+        "title": "Főtermék",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "8fefc249-636b-42f0-9b79-51fdbc2ba81a",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 968,
+          "y": 319
+        },
+        "width": 200,
+        "twoColumn": false
+      },
+      {
+        "type": "ResourceNode",
+        "id": "273a9ffa-3951-434a-a3c4-3e0f8682c810",
+        "title": "Melléktermék",
+        "inputs": {},
+        "outputs": {
+          "material": {
+            "id": "c0da6317-869c-4c64-921c-53b07a2fdf80",
+            "value": null
+          }
+        },
+        "position": {
+          "x": 968,
+          "y": 491
+        },
+        "width": 200,
+        "twoColumn": false
+      }
+    ],
+    "connections": [
+      {
+        "id": "6e9e3e19-20e6-47d0-84b5-c54f7b71f277",
+        "from": "457d7201-9554-490c-ab9a-12ab3f934b68",
+        "to": "714cb411-33b9-4226-8123-8601a934d7b9"
+      },
+      {
+        "id": "564bcf11-4b49-44d8-832a-a90084055b5b",
+        "from": "c3512fed-8560-48ed-a197-07c90ba906dc",
+        "to": "5e651d1d-6af4-4ad7-9f33-db053e535b48"
+      }
+    ],
+    "inputs": [],
+    "outputs": [],
+    "panning": {
+      "x": -41.01190185503174,
+      "y": -7.286408665708379
+    },
+    "scaling": 0.9604528385576863
+  },
+  "nodes": [
+    {
+      "id": "8e45f7c1-9ab2-478f-bf29-a1e01d28c6d5",
+      "type": "ResourceNode",
+      "title": "Steel Sheet",
+      "position": {
+        "x": 127.99999999999999,
+        "y": 271
+      },
+      "resourceType": "input",
+      "fields": {
+        "origin": "",
+        "inputQuantity": 0,
+        "details": ""
+      }
+    },
+    {
+      "id": "290ab01b-dfa8-4921-bf87-8c9489a38764",
+      "type": "ResourceNode",
+      "title": "csomagoló",
+      "position": {
+        "x": 127.99999999999999,
+        "y": 491
+      },
+      "resourceType": "input",
+      "fields": {
+        "origin": "",
+        "inputQuantity": 0,
+        "details": ""
+      }
+    },
+    {
+      "id": "cdf9eb9f-3102-448c-906f-03873b499bdb",
+      "type": "ResourceNode",
+      "title": "Machine",
+      "position": {
+        "x": -36.5,
+        "y": 691
+      },
+      "resourceType": "machine",
+      "fields": {
+        "duration": "",
+        "parameters": ""
+      }
+    },
+    {
+      "id": "ef52e33d-ae68-4d48-92b5-96f919c2302a",
+      "type": "ResourceNode",
+      "title": "Electricity",
+      "position": {
+        "x": 203.5,
+        "y": 691
+      },
+      "resourceType": "energy",
+      "fields": {
+        "quantity": 0
+      }
+    },
+    {
+      "id": "944f5343-b1aa-4181-a4e8-afb8a957b6b5",
+      "type": "ResourceNode",
+      "title": "Gáz (m3)",
+      "position": {
+        "x": 443.5,
+        "y": 691
+      },
+      "resourceType": "gas",
+      "fields": {
+        "quantity": 0
+      }
+    },
+    {
+      "id": "e5d689d6-a6bb-48aa-a672-58d919b0990f",
+      "type": "ResourceNode",
+      "title": "Víz (m3)",
+      "position": {
+        "x": 683.5,
+        "y": 691
+      },
+      "resourceType": "water",
+      "fields": {
+        "quantity": 0
+      }
+    },
+    {
+      "id": "9698801c-ae5a-4b58-af1f-f92e5bd71de3",
+      "type": "ResourceNode",
+      "title": "Szolgáltatás",
+      "position": {
+        "x": 923.5,
+        "y": 691
+      },
+      "resourceType": "service",
+      "fields": {
+        "duration": "",
+        "parameters": ""
+      }
+    },
+    {
+      "id": "90b3db94-72c4-4bbd-add7-1bc6772df315",
+      "type": "ResourceNode",
+      "title": "Ingatlan",
+      "position": {
+        "x": 1163.5,
+        "y": 691
+      },
+      "resourceType": "property",
+      "fields": {
+        "duration": "",
+        "parameters": ""
+      }
+    },
+    {
+      "id": "382076fb-4ca0-4290-81f1-1f9716c4d64f",
+      "type": "ProcessNode",
+      "title": "Process",
+      "position": {
+        "x": 548,
+        "y": 382
+      },
+      "details": "szerelés"
+    },
+    {
+      "id": "c6004065-a0ad-4d46-bf30-0b4986bb53a5",
+      "type": "ProcessNode",
+      "title": "Hulladékkezelés",
+      "position": {
+        "x": 1288,
+        "y": 382
+      },
+      "details": ""
+    },
+    {
+      "id": "55605502-f333-4bf7-b6b0-1724fa7b58ea",
+      "type": "ResourceNode",
+      "title": "Főtermék",
+      "position": {
+        "x": 968,
+        "y": 319
+      },
+      "resourceType": "output",
+      "fields": {
+        "outputKg": 1,
+        "destination": "boltba"
+      }
+    },
+    {
+      "id": "273a9ffa-3951-434a-a3c4-3e0f8682c810",
+      "type": "ResourceNode",
+      "title": "Melléktermék",
+      "position": {
+        "x": 968,
+        "y": 491
+      },
+      "resourceType": "output",
+      "fields": {
+        "outputKg": 1,
+        "destination": ""
+      }
+    }
+  ],
+  "view": {
+    "scaling": 0.9604528385576863,
+    "panning": {
+      "x": -41.01190185503174,
+      "y": -7.286408665708379
+    }
+  },
+  "updatedAt": "2026-02-18T16:44:20.509Z",
+  "id": "9e0e52d4-3063-47f9-a937-16991717785b",
+  "createdAt": "2026-02-18T16:30:31.264Z",
+  "owner": "17f4bae4e6f332b0",
+  "contact": {
+    "email": "drahotab@gmail.com",
+    "phone": "+36208020801"
+  },
+  "lastUpdatedBy": "email:drahotab@gmail.com"
+}

@@ -16,6 +16,8 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -27,39 +29,34 @@ body {
 }
 
 /* Hide BaklavaJS sidebar */
-:deep(.baklava-sidebar) {
+.baklava-sidebar {
   display: none !important;
 }
 
 /* Ensure editor takes full width without sidebar */
-:deep(.baklava-editor) {
+.baklava-editor {
   width: 100% !important;
   grid-template-columns: 1fr !important;
+  touch-action: none;
 }
 
-:deep(.baklava-connection) {
-  color: var(--baklava-color-connection-default);
-  marker-mid: url(#connection-arrow);
-  marker-end: url(#connection-arrow);
+.baklava-editor,
+.baklava-editor .node-container {
+  touch-action: none;
 }
 
 /* Hide toolbar with subgraph commands */
-:deep(.baklava-toolbar) {
+.baklava-toolbar {
   display: none !important;
 }
 
 /* Hide subgraph input/output nodes from being added */
-:deep(.baklava-node-palette) {
+.baklava-node-palette {
   display: none !important;
 }
 
 /* Fix ResourceNode width - override BaklavaJS default full-width */
-:deep([data-node-type="ResourceNode"]) {
-  width: auto !important;
-  max-width: 200px !important;
-}
-
-:deep([data-node-type="ResourceNode"] .baklava-node) {
+[data-node-type="ResourceNode"] {
   width: auto !important;
   max-width: 200px !important;
 }
@@ -73,42 +70,57 @@ body {
   margin: 0 !important;
 }
 
-.baklava-editor .background,
-.baklava-editor .connections-container {
+.baklava-editor .background {
   pointer-events: none;
+  z-index: 0;
 }
 
 .baklava-editor .node-container {
   pointer-events: none;
+  z-index: 1;
 }
 
 .baklava-editor .node-container .baklava-node {
   pointer-events: auto;
 }
 
+/*
+ * Connection lines: .connections-container IS the <svg> element (not a wrapper div).
+ * So target paths directly inside it, not inside a nested svg.
+ */
+.baklava-editor .connections-container {
+  pointer-events: none;
+  z-index: 2 !important;
+  position: absolute !important;
+  overflow: visible !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Style connection paths - .connections-container IS the svg */
+.baklava-connection {
+  stroke: #4fc3f7 !important;
+  stroke-width: 2.5 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  fill: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 /* Aggressively hide all subgraph-related nodes */
-:deep(.node-subgraph-input),
-:deep(.node-subgraph-output),
-:deep([data-node-type="SubgraphInputNode"]),
-:deep([data-node-type="SubgraphOutputNode"]),
-:deep([data-node-type="__baklava_SubgraphInputNode"]),
-:deep([data-node-type="__baklava_SubgraphOutputNode"]),
-:deep([class*="subgraph-input"]),
-:deep([class*="subgraph-output"]),
-:deep([class*="SubgraphInput"]),
-:deep([class*="SubgraphOutput"]) {
+[data-node-type="SubgraphInputNode"],
+[data-node-type="SubgraphOutputNode"],
+[data-node-type="__baklava_SubgraphInputNode"],
+[data-node-type="__baklava_SubgraphOutputNode"],
+[class*="subgraph-input"],
+[class*="subgraph-output"],
+[class*="SubgraphInput"],
+[class*="SubgraphOutput"] {
   display: none !important;
   visibility: hidden !important;
   position: absolute !important;
   left: -9999px !important;
-}
-
-/* Hide any node with "Subgraph" in title */
-:deep(.baklava-node:has([title*="Subgraph"])) {
-  display: none !important;
-}
-
-/* Hide category "Subgraphs" from node palette */
-:deep(.node-palette-category):has([data-category="Subgraphs"]) {
-  display: none !important;
 }

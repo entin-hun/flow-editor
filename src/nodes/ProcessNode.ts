@@ -102,7 +102,7 @@ export class ProcessNode extends Node<Record<string, unknown>, Record<string, un
     return intf;
   }
 
-  private makeKey(name: string, side: FlowSide, flowType: string, fieldPath?: ProcessFieldPath): string {
+  public makeKey(name: string, side: FlowSide, flowType: string, fieldPath?: ProcessFieldPath): string {
     const source = fieldPath ?? `${side}_${flowType}_${name}`;
     const normalized = source
       .toLowerCase()
@@ -117,5 +117,86 @@ export class ProcessNode extends Node<Record<string, unknown>, Record<string, un
       index += 1;
     }
     return key;
+  }
+
+  public save() {
+    // Save port metadata alongside standard BaklavaJS state
+    const portMeta: Record<string, { side: FlowSide; flowType: string; fieldPath?: string }> = {};
+    const allIntfs: Record<string, PortIntf> = { ...this.inputs, ...this.outputs };
+    for (const [key, intf] of Object.entries(allIntfs)) {
+      if ((intf as PortIntf).data) {
+        portMeta[key] = {
+          side: (intf as PortIntf).data!.side,
+          flowType: (intf as PortIntf).data!.flowType,
+          fieldPath: (intf as PortIntf).data!.fieldPath,
+        };
+      }
+    }
+    return {
+      ...super.save(),
+      details: this.details,
+      portMeta,
+    };
+  }
+
+  public load(state: ReturnType<ProcessNode["save"]> & Record<string, unknown>) {
+    const portMeta = (state as any).portMeta as Record<string, { side: FlowSide; flowType: string; fieldPath?: string }> | undefined;
+
+    // Create any dynamically-added interfaces that exist in saved state
+    // but don't exist after the constructor ran
+    const savedInputs = (state as any).inputs || {};
+    const savedOutputs = (state as any).outputs || {};
+
+    for (const key of Object.keys(savedInputs)) {
+      if (!this.inputs[key]) {
+        const meta = portMeta?.[key];
+        const side: FlowSide = meta?.side ?? "input";
+        const flowType = meta?.flowType ?? "material";
+        const location: Location = meta?.location as Location ?? inputSideToLocation[side as Exclude<FlowSide, "output">] ?? "left";
+        const fieldPath = meta?.fieldPath as ProcessFieldPath | undefined;
+
+        const intf = new NodeInterface<unknown>(key, null).setPort(true).setHidden(false) as PortIntf;
+        intf.data = { side, location, flowType, fieldPath };
+        this.addInput(key, intf);
+      } else if (portMeta?.[key]) {
+        // Restore port metadata for constructor-created interfaces
+        const existing = this.inputs[key] as PortIntf;
+        if (!existing.data) {
+          existing.data = {
+            side: portMeta[key].side,
+            location: inputSideToLocation[portMeta[key].side as Exclude<FlowSide, "output">],
+            flowType: portMeta[key].flowType,
+            fieldPath: portMeta[key].fieldPath as ProcessFieldPath | undefined,
+          };
+        }
+      }
+    }
+
+    for (const key of Object.keys(savedOutputs)) {
+      if (!this.outputs[key]) {
+        const meta = portMeta?.[key];
+        const side: FlowSide = meta?.side ?? "output";
+        const flowType = meta?.flowType ?? "product";
+        const location: Location = meta?.location as Location ?? outputSideToLocation[side] ?? "right";
+        const fieldPath = meta?.fieldPath as ProcessFieldPath | undefined;
+
+        const intf = new NodeInterface<unknown>(key, null).setPort(true).setHidden(false) as PortIntf;
+        intf.data = { side, location, flowType, fieldPath };
+        this.addOutput(key, intf);
+      } else if (portMeta?.[key]) {
+        const existing = this.outputs[key] as PortIntf;
+        if (!existing.data) {
+          existing.data = {
+            side: portMeta[key].side,
+            location: outputSideToLocation[portMeta[key].side],
+            flowType: portMeta[key].flowType,
+            fieldPath: portMeta[key].fieldPath as ProcessFieldPath | undefined,
+          };
+        }
+      }
+    }
+
+    super.load(state);
+    if ((state as any).details !== undefined) this.details = (state as any).details;
   }
 }

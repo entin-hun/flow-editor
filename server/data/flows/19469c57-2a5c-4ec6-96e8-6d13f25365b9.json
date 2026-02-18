@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "graph": {},
+  "nodes": [],
+  "contact": {
+    "email": "test@test.com",
+    "phone": "123"
+  },
+  "updatedAt": "2026-02-18T19:00:35.463Z",
+  "id": "19469c57-2a5c-4ec6-96e8-6d13f25365b9",
+  "createdAt": "2026-02-18T19:00:35.463Z",
+  "owner": "ecd71870d1963316",
+  "lastUpdatedBy": "ecd71870d1963316"
+}

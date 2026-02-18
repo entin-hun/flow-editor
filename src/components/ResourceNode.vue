@@ -11,6 +11,7 @@ type PortMeta = {
 const props = defineProps<{
   node: AbstractNode;
   onDelete?: () => void;
+  onOutputConnector?: (intf: NodeInterface<unknown>) => void;
 }>();
 
 type ResourceFields = {
@@ -177,6 +178,25 @@ const isOutput = computed(() => resourceType.value === "output");
 const isQuantityNode = computed(() => ["energy", "gas", "water"].includes(resourceType.value));
 const isTimedNode = computed(() => ["machine", "service", "property"].includes(resourceType.value));
 
+const outputPointerStart = ref<{ x: number; y: number } | null>(null);
+const handleOutputPointerDown = (event: PointerEvent, intf: NodeInterface<unknown>) => {
+  if (!isOutput.value) return;
+  if (readLocation(intf) !== "right") return;
+  outputPointerStart.value = { x: event.clientX, y: event.clientY };
+};
+
+const handleOutputPointerUp = (event: PointerEvent, intf: NodeInterface<unknown>) => {
+  if (!isOutput.value) return;
+  if (readLocation(intf) !== "right") return;
+  const start = outputPointerStart.value;
+  outputPointerStart.value = null;
+  if (!start) return;
+  const dx = event.clientX - start.x;
+  const dy = event.clientY - start.y;
+  if (Math.hypot(dx, dy) > 6) return;
+  props.onOutputConnector?.(intf);
+};
+
 const clampCount = (count: number) => (count > 0 ? count : 1);
 const getPortStyle = (side: Location, index: number, count: number) => {
   const safeCount = clampCount(count);
@@ -236,6 +256,8 @@ const NodeInterfaceView = Components.NodeInterface;
       :node="node"
       :intf="intf"
       :style="getPortStyle('right', index, rightPorts.length)"
+      @pointerdown.capture="handleOutputPointerDown($event, intf)"
+      @pointerup.capture="handleOutputPointerUp($event, intf)"
     />
 
     <NodeInterfaceView
@@ -454,13 +476,22 @@ const NodeInterfaceView = Components.NodeInterface;
 .delete-btn {
   width: 22px;
   height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  aspect-ratio: 1;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid #4fc3f7;
   background: #101418;
   color: #fff;
   font-size: 14px;
-  line-height: 20px;
+  line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
 }
 
 .delete-btn:hover {
@@ -531,6 +562,27 @@ const NodeInterfaceView = Components.NodeInterface;
   margin: 0;
   line-height: 0;
   font-size: 0;
+}
+
+@media (max-width: 768px) {
+  .resource-node {
+    padding: 10px 14px;
+  }
+
+  .resource-node :deep(.baklava-node-interface) {
+    width: 16px;
+    height: 16px;
+  }
+
+  .title-input {
+    font-size: 13px;
+  }
+
+  .field-input,
+  .field-textarea,
+  .field-value {
+    font-size: 12px;
+  }
 }
 
 .resource-node :deep(.baklava-node-interface > span) {
