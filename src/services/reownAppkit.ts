@@ -109,7 +109,7 @@ export const initReownAppKit = async (onToken?: (token: string) => void) => {
       },
     };
 
-    const adapter = new EthersAdapter({
+    const adapter = new (EthersAdapter as any)({
       providers: [new JsonRpcProvider(rpcUrl, chainId)],
       chains: [network],
     });
@@ -126,18 +126,18 @@ export const initReownAppKit = async (onToken?: (token: string) => void) => {
       },
       features: {
         analytics: true,
-        socials: SOCIALS,
+        socials: SOCIALS as any,
       },
       enableEIP6963: true,
       enableInjected: true,
       enableCoinbase: true,
     });
 
-    const controllers = await import("@reown/appkit-controllers");
+    const controllers = await import("@reown/appkit-controllers") as any;
     const { ChainController, CoreHelperUtil, AccountController, ConnectorController } = controllers;
 
     const handleProfile = async (caipAddress: string | undefined | null) => {
-      const address = caipAddress ? CoreHelperUtil.getPlainAddress(caipAddress) : undefined;
+      const address = caipAddress ? CoreHelperUtil.getPlainAddress(caipAddress as any) : undefined;
       if (!address) {
         clearAuthToken();
         return;
@@ -148,7 +148,7 @@ export const initReownAppKit = async (onToken?: (token: string) => void) => {
       try {
         const authConnector = ConnectorController.getAuthConnector?.();
         if (authConnector && authConnector.provider) {
-          const provider = authConnector.provider;
+          const provider = authConnector.provider as any;
           const session = provider.session || provider.getSession?.();
           const user = session?.user || provider.user;
 
