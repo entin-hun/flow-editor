@@ -691,6 +691,61 @@ const refreshConnectionCoords = () => {
   });
 };
 
+const getNodeSizeForLayout = (node: any, fallback = { width: 200, height: 180 }) => {
+  const el = document.getElementById(node.id);
+  if (!el) return fallback;
+  const rect = el.getBoundingClientRect();
+  const scale = baklava.displayedGraph?.scaling || 1;
+  return {
+    width: rect.width / scale,
+    height: rect.height / scale,
+  };
+};
+
+const rectsOverlap = (
+  first: { left: number; top: number; right: number; bottom: number },
+  second: { left: number; top: number; right: number; bottom: number }
+) => first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
+
+const placeNodeAvoidingOverlap = (
+  graph: any,
+  node: any,
+  startX: number,
+  startY: number,
+  axis: "x" | "y",
+  ignoreNodeIds: string[] = []
+) => {
+  const gap = 24;
+  const size = getNodeSizeForLayout(node);
+  let x = startX;
+  let y = startY;
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const nextRect = { left: x, top: y, right: x + size.width, bottom: y + size.height };
+    const collides = graph.nodes.some((other: any) => {
+      if (!other || other.id === node.id || ignoreNodeIds.includes(other.id)) return false;
+      const otherSize = getNodeSizeForLayout(other);
+      const otherRect = {
+        left: other.position.x,
+        top: other.position.y,
+        right: other.position.x + otherSize.width,
+        bottom: other.position.y + otherSize.height,
+      };
+      return rectsOverlap(nextRect, otherRect);
+    });
+    if (!collides) break;
+    if (axis === "y") {
+      y += size.height + gap;
+    } else {
+      x += size.width + gap;
+    }
+  }
+
+  node.position.x = x;
+  node.position.y = y;
+  setNodePosition(node, x, y);
+};
+
 const deleteNode = (node: ProcessNode | ResourceNode) => {
   const graph = baklava.displayedGraph as any;
   if (graph?.removeNode) {
@@ -776,19 +831,16 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
     graph.addConnection(intf, processInput);
   }
 
-  /* Place the new process just to the right of the resource node.
-     Both node types declare width = 200 in graph-space; use that directly
-     instead of DOM measurement which is unreliable under zoom/scale. */
-  suppressAutoArrange.value = true;
-  const RESOURCE_WIDTH = (resource as any).width ?? 200;
-  const GAP = 30;
-  const x = resource.position.x + RESOURCE_WIDTH + GAP;
-  const y = resource.position.y;
-  process.position.x = x;
-  process.position.y = y;
-  setNodePosition(process as any, x, y);
-  refreshConnectionCoords();
-  setTimeout(() => { suppressAutoArrange.value = false; }, 600);
+  /* Place the new process to the right of the resource node, with collision avoidance */
+  const nodeSize = getNodeSizeForLayout(resource);
+  const startX = resource.position.x + nodeSize.width + 80;
+  const startY = resource.position.y;
+  placeNodeAvoidingOverlap(graph, process, startX, startY, "y", [resource.id]);
+
+  nextTick(() => {
+    const delays = [0, 120, 280];
+    delays.forEach((d) => setTimeout(() => refreshConnectionCoords(), d));
+  });
 };
 
 const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unknown>) => {
@@ -812,18 +864,16 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
     graph.addConnection(upstreamOutput, leftPortOnResource);
   }
 
-  /* Place the new process just to the LEFT of the resource node.
-     Use the known graph-space width (200) instead of DOM measurement. */
-  suppressAutoArrange.value = true;
-  const PROCESS_WIDTH = (upstream as any).width ?? 200;
-  const GAP = 30;
-  const x = resource.position.x - PROCESS_WIDTH - GAP;
-  const y = resource.position.y;
-  upstream.position.x = x;
-  upstream.position.y = y;
-  setNodePosition(upstream as any, x, y);
-  refreshConnectionCoords();
-  setTimeout(() => { suppressAutoArrange.value = false; }, 600);
+  /* Place to the LEFT of the resource, with collision avoidance */
+  const processSize = getNodeSizeForLayout(upstream);
+  const startX = resource.position.x - processSize.width - 80;
+  const startY = resource.position.y;
+  placeNodeAvoidingOverlap(graph, upstream, startX, startY, "y", [resource.id]);
+
+  nextTick(() => {
+    const delays = [0, 120, 280];
+    delays.forEach((d) => setTimeout(() => refreshConnectionCoords(), d));
+  });
 };
 
 const autoArrangeNodes = () => {
@@ -1342,14 +1392,13 @@ onUnmounted(() => {
   }
 });
 
-// Watch for changes and auto-arrange
+// Watch for changes and refresh connections
 watch(
   () => [baklava.displayedGraph.nodes.length, baklava.displayedGraph.connections.length],
   () => {
-    if (suppressAutoArrange.value) return;
-    logGraphState("watch-change");
-    setTimeout(() => autoArrangeNodes(), 50);
-    setTimeout(() => refreshConnectionCoords(), 100);
+    /* Avoid re-running full auto-arrange on every graph mutation; this was
+       causing spawned process position jumps during + actions. */
+    refreshConnectionCoords();
   }
 );
 </script>
