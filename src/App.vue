@@ -812,8 +812,15 @@ const addInputPort = (process: ProcessNode) => {
     graph.addConnection(outputPort, processPort);
   }
 
-  autoArrangeNodes();
-  refreshConnectionCoords();
+  /* Place the new resource to the left of the process node, with collision avoidance */
+  const startX = process.position.x - 200 - 80; // 200 = resource node graph-space width
+  const startY = process.position.y;
+  placeNodeAvoidingOverlap(graph, resource, startX, startY, "y", [process.id]);
+
+  nextTick(() => {
+    const delays = [0, 120, 280];
+    delays.forEach((d) => setTimeout(() => refreshConnectionCoords(), d));
+  });
 };
 
 const addOutputPort = (process: ProcessNode) => {
@@ -832,8 +839,16 @@ const addOutputPort = (process: ProcessNode) => {
     graph.addConnection(processPort, inputPort);
   }
 
-  autoArrangeNodes();
-  refreshConnectionCoords();
+  /* Place the new resource to the right of the process node, with collision avoidance */
+  const processSize = getNodeSizeForLayout(process);
+  const startX = process.position.x + processSize.width + 80;
+  const startY = process.position.y;
+  placeNodeAvoidingOverlap(graph, resource, startX, startY, "y", [process.id]);
+
+  nextTick(() => {
+    const delays = [0, 120, 280];
+    delays.forEach((d) => setTimeout(() => refreshConnectionCoords(), d));
+  });
 };
 
 const addMechanismPort = (process: ProcessNode) => {
@@ -852,8 +867,16 @@ const addMechanismPort = (process: ProcessNode) => {
     graph.addConnection(outputPort, processPort);
   }
 
-  autoArrangeNodes();
-  refreshConnectionCoords();
+  /* Place the new mechanism resource below the process node, with collision avoidance */
+  const processSize = getNodeSizeForLayout(process);
+  const startX = process.position.x;
+  const startY = process.position.y + processSize.height + 80;
+  placeNodeAvoidingOverlap(graph, resource, startX, startY, "x", [process.id]);
+
+  nextTick(() => {
+    const delays = [0, 120, 280];
+    delays.forEach((d) => setTimeout(() => refreshConnectionCoords(), d));
+  });
 };
 
 const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknown>) => {
