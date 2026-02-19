@@ -752,11 +752,12 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
     graph.addConnection(intf, processInput);
   }
 
+  const EDGE_GAP = 24;
   const resourceEl = document.getElementById(resource.id);
   const resourceRect = resourceEl ? resourceEl.getBoundingClientRect() : null;
   const scale = graph.scaling || 1;
   const resourceWidth = resourceRect ? resourceRect.width / scale : 200;
-  const x = resource.position.x + resourceWidth + 60;
+  const x = resource.position.x + resourceWidth + EDGE_GAP;
   const y = resource.position.y;
   process.position.x = x;
   process.position.y = y;
@@ -785,10 +786,15 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
     graph.addConnection(upstreamOutput, leftPortOnResource);
   }
 
-  /* Position the new process to the LEFT of the resource node.
-     The spawned process has no DOM element yet, so use a fixed width estimate. */
-  const PROCESS_WIDTH_ESTIMATE = 280;
-  const x = resource.position.x - PROCESS_WIDTH_ESTIMATE - 80;
+    /* Position the new process to the LEFT of the resource node.
+      Estimate process width from existing process nodes when possible. */
+    const EDGE_GAP = 24;
+    const firstProcess = graph.nodes.find((node) => node.type === "ProcessNode") as ProcessNode | undefined;
+    const firstProcessEl = firstProcess ? document.getElementById(firstProcess.id) : null;
+    const processRect = firstProcessEl ? firstProcessEl.getBoundingClientRect() : null;
+    const scale = graph.scaling || 1;
+    const PROCESS_WIDTH_ESTIMATE = processRect ? processRect.width / scale : 280;
+    const x = resource.position.x - PROCESS_WIDTH_ESTIMATE - EDGE_GAP;
   const y = resource.position.y;
   upstream.position.x = x;
   upstream.position.y = y;
