@@ -648,6 +648,30 @@ const ensureDemoConnections = () => {
   return true;
 };
 
+const isInteractiveTarget = (target: EventTarget | null) => {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return Boolean(
+    target.closest("input, textarea, select, button, option, [contenteditable='true'], .baklava-node-interface")
+  );
+};
+
+const handleNodePointerDown = (
+  event: PointerEvent,
+  node: any,
+  onStartDrag?: (event: PointerEvent) => void,
+  onSelect?: (event?: any) => void,
+) => {
+  if (!onStartDrag) return;
+  if (isInteractiveTarget(event.target)) return;
+  const selectedNodes = baklava.displayedGraph.selectedNodes as any[];
+  if (!selectedNodes.includes(node)) {
+    selectedNodes.length = 0;
+    selectedNodes.push(node);
+  }
+  event.stopPropagation();
+  onStartDrag(event);
+};
+
 const refreshConnectionCoords = () => {
   const graph = baklava.displayedGraph;
   if (graph.nodes.length === 0) return;
@@ -755,6 +779,7 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
   /* Place the new process just to the right of the resource node.
      Both node types declare width = 200 in graph-space; use that directly
      instead of DOM measurement which is unreliable under zoom/scale. */
+  suppressAutoArrange.value = true;
   const RESOURCE_WIDTH = (resource as any).width ?? 200;
   const GAP = 30;
   const x = resource.position.x + RESOURCE_WIDTH + GAP;
@@ -763,6 +788,7 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
   process.position.y = y;
   setNodePosition(process as any, x, y);
   refreshConnectionCoords();
+  setTimeout(() => { suppressAutoArrange.value = false; }, 600);
 };
 
 const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unknown>) => {
@@ -788,6 +814,7 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
 
   /* Place the new process just to the LEFT of the resource node.
      Use the known graph-space width (200) instead of DOM measurement. */
+  suppressAutoArrange.value = true;
   const PROCESS_WIDTH = (upstream as any).width ?? 200;
   const GAP = 30;
   const x = resource.position.x - PROCESS_WIDTH - GAP;
@@ -796,6 +823,7 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
   upstream.position.y = y;
   setNodePosition(upstream as any, x, y);
   refreshConnectionCoords();
+  setTimeout(() => { suppressAutoArrange.value = false; }, 600);
 };
 
 const autoArrangeNodes = () => {
@@ -1425,13 +1453,18 @@ watch(
             <template #title></template>
             <template #nodeInterface></template>
             <template #content>
-              <Idef0Node
-                :node="node"
-                :on-add-input="() => addInputPort(node as ProcessNode)"
-                :on-add-output="() => addOutputPort(node as ProcessNode)"
-                :on-add-mechanism="() => addMechanismPort(node as ProcessNode)"
-                :on-delete="() => deleteNode(node as ProcessNode)"
-              />
+              <div
+                class="tm-node-drag-surface"
+                @pointerdown="(event) => handleNodePointerDown(event as PointerEvent, node, onStartDrag, onSelect)"
+              >
+                <Idef0Node
+                  :node="node"
+                  :on-add-input="() => addInputPort(node as ProcessNode)"
+                  :on-add-output="() => addOutputPort(node as ProcessNode)"
+                  :on-add-mechanism="() => addMechanismPort(node as ProcessNode)"
+                  :on-delete="() => deleteNode(node as ProcessNode)"
+                />
+              </div>
             </template>
           </Components.Node>
         </template>
@@ -1447,12 +1480,17 @@ watch(
             <template #title></template>
             <template #nodeInterface></template>
             <template #content>
-              <ResourceNodeVue
-                :node="node"
-                :on-delete="() => deleteNode(node as ResourceNode)"
-                :on-output-connector="(intf) => addProcessFromOutput(node as ResourceNode, intf)"
-                :on-input-connector="(intf) => addProcessBeforeInput(node as ResourceNode, intf)"
-              />
+              <div
+                class="tm-node-drag-surface"
+                @pointerdown="(event) => handleNodePointerDown(event as PointerEvent, node, onStartDrag, onSelect)"
+              >
+                <ResourceNodeVue
+                  :node="node"
+                  :on-delete="() => deleteNode(node as ResourceNode)"
+                  :on-output-connector="(intf) => addProcessFromOutput(node as ResourceNode, intf)"
+                  :on-input-connector="(intf) => addProcessBeforeInput(node as ResourceNode, intf)"
+                />
+              </div>
             </template>
           </Components.Node>
         </template>
@@ -1477,6 +1515,24 @@ watch(
 [data-node-type="ResourceNode"] {
   width: auto !important;
   max-width: 200px !important;
+}
+
+/* display:contents so the drag-surface wrapper doesn't introduce an extra box –
+   Baklava computes port positions relative to .baklava-node via offsetLeft chain
+   and an intermediate box would break the calculation. */
+.tm-node-drag-surface {
+  display: contents;
+}
+
+/* Grab cursor on the node content areas */
+.idef0-node,
+.resource-node {
+  cursor: grab;
+}
+
+.idef0-node:active,
+.resource-node:active {
+  cursor: grabbing;
 }
 </style>
 
