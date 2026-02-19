@@ -12,6 +12,7 @@ const props = defineProps<{
   node: AbstractNode;
   onDelete?: () => void;
   onOutputConnector?: (intf: NodeInterface<unknown>) => void;
+  onInputConnector?: (intf: NodeInterface<unknown>) => void;
 }>();
 
 type ResourceFields = {
@@ -248,6 +249,52 @@ const handleOutputPointerUp = (event: PointerEvent, intf: NodeInterface<unknown>
   props.onOutputConnector?.(intf);
 };
 
+/* Input connector: + badge on the left side of "input" type nodes */
+const inputPointerStart = ref<{ x: number; y: number } | null>(null);
+const handleInputPointerDown = (event: PointerEvent, intf: NodeInterface<unknown>) => {
+  if (!isInput.value) return;
+  event.stopPropagation();
+  event.preventDefault();
+  inputPointerStart.value = { x: event.clientX, y: event.clientY };
+};
+
+const handleInputPointerUp = (event: PointerEvent, intf: NodeInterface<unknown>) => {
+  if (!isInput.value) return;
+  event.stopPropagation();
+  event.preventDefault();
+  const start = inputPointerStart.value;
+  inputPointerStart.value = null;
+  if (!start) return;
+  const dx = event.clientX - start.x;
+  const dy = event.clientY - start.y;
+  if (Math.hypot(dx, dy) > 6) return;
+  props.onInputConnector?.(intf);
+};
+
+/* Standalone input connector handlers (when no left ports exist yet) */
+const handleInputPointerDownStandalone = (event: PointerEvent) => {
+  if (!isInput.value) return;
+  event.stopPropagation();
+  event.preventDefault();
+  inputPointerStart.value = { x: event.clientX, y: event.clientY };
+};
+
+const handleInputPointerUpStandalone = (event: PointerEvent) => {
+  if (!isInput.value) return;
+  event.stopPropagation();
+  event.preventDefault();
+  const start = inputPointerStart.value;
+  inputPointerStart.value = null;
+  if (!start) return;
+  const dx = event.clientX - start.x;
+  const dy = event.clientY - start.y;
+  if (Math.hypot(dx, dy) > 6) return;
+  /* Pass the right-side output as the interface reference; App.vue will
+     create the actual left-side input port on this resource node. */
+  const rightIntf = rightPorts.value[0];
+  if (rightIntf) props.onInputConnector?.(rightIntf);
+};
+
 const clampCount = (count: number) => (count > 0 ? count : 1);
 const getPortStyle = (side: Location, index: number, count: number) => {
   const safeCount = clampCount(count);
@@ -293,23 +340,48 @@ const NodeInterfaceView = Components.NodeInterface;
 
 <template>
   <div class="resource-node">
-    <NodeInterfaceView
-      v-for="(intf, index) in leftPorts"
-      :key="intf.id"
-      :node="node"
-      :intf="intf"
-      :style="getPortStyle(remapSide('left'), index, leftPorts.length)"
-    />
+    <template v-for="(intf, index) in leftPorts" :key="intf.id">
+      <NodeInterfaceView
+        :node="node"
+        :intf="intf"
+        :style="getPortStyle(remapSide('left'), index, leftPorts.length)"
+      />
+      <!-- + badge to the left of existing left-side ports (upstream spawn) -->
+      <span
+        v-if="isInput && props.onInputConnector"
+        class="output-add-badge"
+        :style="{ position: 'absolute', left: 'calc(0% - 26px)', top: `${((index + 1) / (leftPorts.length + 1)) * 100}%`, transform: 'translate(0, -50%)', zIndex: 100 }"
+        @pointerdown.capture.stop.prevent="handleInputPointerDown($event, intf)"
+        @pointerup.capture.stop.prevent="handleInputPointerUp($event, intf)"
+      >+</span>
+    </template>
 
-    <NodeInterfaceView
-      v-for="(intf, index) in rightPorts"
-      :key="intf.id"
-      :node="node"
-      :intf="intf"
-      :style="getPortStyle(remapSide('right'), index, rightPorts.length)"
-      @pointerdown.capture="handleOutputPointerDown($event, intf)"
-      @pointerup.capture="handleOutputPointerUp($event, intf)"
-    />
+    <!-- Standalone + badge for input nodes that have no left ports yet -->
+    <span
+      v-if="isInput && leftPorts.length === 0 && props.onInputConnector"
+      class="output-add-badge"
+      :style="{ position: 'absolute', left: 'calc(0% - 26px)', top: '50%', transform: 'translate(0, -50%)', zIndex: 100 }"
+      @pointerdown.capture.stop.prevent="handleInputPointerDownStandalone($event)"
+      @pointerup.capture.stop.prevent="handleInputPointerUpStandalone($event)"
+    >+</span>
+
+    <template v-for="(intf, index) in rightPorts" :key="intf.id">
+      <NodeInterfaceView
+        :node="node"
+        :intf="intf"
+        :style="getPortStyle(remapSide('right'), index, rightPorts.length)"
+        @pointerdown.capture="handleOutputPointerDown($event, intf)"
+        @pointerup.capture="handleOutputPointerUp($event, intf)"
+      />
+      <!-- + badge to the right of right-side ports on output nodes (downstream spawn) -->
+      <span
+        v-if="isOutput"
+        class="output-add-badge"
+        :style="{ position: 'absolute', left: 'calc(100% + 10px)', top: `${((index + 1) / (rightPorts.length + 1)) * 100}%`, transform: 'translate(0, -50%)', zIndex: 100 }"
+        @pointerdown.capture.stop.prevent="handleOutputPointerDown($event, intf)"
+        @pointerup.capture.stop.prevent="handleOutputPointerUp($event, intf)"
+      >+</span>
+    </template>
 
     <NodeInterfaceView
       v-for="(intf, index) in topPorts"
@@ -663,6 +735,29 @@ const NodeInterfaceView = Components.NodeInterface;
 
 .resource-node :deep(.baklava-node-interface > span) {
   display: none;
+}
+
+.output-add-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: hsl(var(--accent));
+  color: hsl(var(--background));
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: 0 0 0 2px hsl(var(--accent) / 0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.output-add-badge:hover {
+  box-shadow: 0 0 0 4px hsl(var(--accent) / 0.55);
+  background: hsl(var(--primary));
 }
 
 </style>

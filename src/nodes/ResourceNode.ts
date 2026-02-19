@@ -112,4 +112,13 @@ export class ResourceNode extends Node<Record<string, unknown>, Record<string, u
     this.addInput(name.toLowerCase().replace(/\s+/g, "_"), intf);
     return intf;
   }
+
+  /** Public helper so App.vue can dynamically add a left-side input port for upstream spawning */
+  public addInputPort(name: string, location: Location = "left"): NodeInterface<unknown> {
+    const key = name.toLowerCase().replace(/\s+/g, "_") + "_" + Object.keys(this.inputs).length;
+    const intf = new NodeInterface<unknown>(name, null).setPort(true).setHidden(false);
+    (intf as any).data = { location };
+    this.addInput(key, intf);
+    return intf;
+  }
 }

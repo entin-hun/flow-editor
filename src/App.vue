@@ -765,6 +765,41 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
   refreshConnectionCoords();
 };
 
+const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unknown>) => {
+  const graph = baklava.displayedGraph;
+  if (!graph || !resource) return;
+  if ((resource as ResourceNode).resourceType !== "input") return;
+
+  const processCount = graph.nodes.filter((n) => n.type === "ProcessNode").length;
+  const upstream = graph.addNode(new ProcessNode());
+  if (!upstream) return;
+
+  (upstream as any).title = `Process ${processCount + 1}`;
+
+  /* Give the spawned process a left input port and a right output port */
+  const upstreamInput = upstream.addFlowInterface("Input 1", "material", "input");
+  const upstreamOutput = upstream.addFlowInterface("Output 1", "material", "output");
+
+  /* Add a left-side input port on the resource node and connect it */
+  const leftPortOnResource = (resource as ResourceNode).addInputPort("Source", "left");
+  if (upstreamOutput && leftPortOnResource) {
+    graph.addConnection(upstreamOutput, leftPortOnResource);
+  }
+
+  /* Position the new process to the LEFT of the resource node */
+  const resourceEl = document.getElementById(resource.id);
+  const resourceRect = resourceEl ? resourceEl.getBoundingClientRect() : null;
+  const scale = graph.scaling || 1;
+  const processWidth = resourceRect ? resourceRect.width / scale : 220;
+  const x = resource.position.x - processWidth - 80;
+  const y = resource.position.y;
+  upstream.position.x = x;
+  upstream.position.y = y;
+  setNodePosition(upstream as any, x, y);
+  autoArrangeNodes();
+  refreshConnectionCoords();
+};
+
 const autoArrangeNodes = () => {
   const graph = baklava.displayedGraph;
   const nodes = graph.nodes;
@@ -1418,6 +1453,7 @@ watch(
                 :node="node"
                 :on-delete="() => deleteNode(node as ResourceNode)"
                 :on-output-connector="(intf) => addProcessFromOutput(node as ResourceNode, intf)"
+                :on-input-connector="(intf) => addProcessBeforeInput(node as ResourceNode, intf)"
               />
             </template>
           </Components.Node>
