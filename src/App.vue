@@ -16,6 +16,8 @@ const saveStatus = ref("");
 const isSaving = ref(false);
 const currentFlowId = ref<string | null>(null);
 const suppressAutoArrange = ref(false);
+const spawnVer = ref(0);
+const spawnedNodeIds = new Set<string>();
 const authToken = ref<string | null>(null);
 const pendingSave = ref(false);
 const draftStorageKey = "flow-editor-draft";
@@ -749,9 +751,49 @@ const placeNodeAvoidingOverlap = (
 const deleteNode = (node: ProcessNode | ResourceNode) => {
   const graph = baklava.displayedGraph as any;
   if (graph?.removeNode) {
+    spawnedNodeIds.delete(node.id);
     graph.removeNode(node);
+    spawnVer.value++;
     refreshConnectionCoords();
   }
+};
+
+/** True when this output-type resource already has a downstream spawned process. */
+const resourceHasRightSpawn = (node: any): boolean => {
+  void spawnVer.value;
+  const graph = baklava.displayedGraph as any;
+  if (!graph?.connections) return false;
+  const outputPortIds = new Set<string>();
+  if (node.outputs) {
+    Object.values(node.outputs).forEach((intf: any) => {
+      if (intf?.id) outputPortIds.add(intf.id);
+    });
+  }
+  if (outputPortIds.size === 0) return false;
+  return graph.connections.some((c: any) => {
+    if (!outputPortIds.has(c.from?.id)) return false;
+    const toNode = graph.nodes.find((n: any) => n.id === c.to?.nodeId);
+    return toNode && spawnedNodeIds.has(toNode.id);
+  });
+};
+
+/** True when this input-type resource already has an upstream spawned process. */
+const resourceHasLeftSpawn = (node: any): boolean => {
+  void spawnVer.value;
+  const graph = baklava.displayedGraph as any;
+  if (!graph?.connections) return false;
+  const inputPortIds = new Set<string>();
+  if (node.inputs) {
+    Object.values(node.inputs).forEach((intf: any) => {
+      if (intf?.id) inputPortIds.add(intf.id);
+    });
+  }
+  if (inputPortIds.size === 0) return false;
+  return graph.connections.some((c: any) => {
+    if (!inputPortIds.has(c.to?.id)) return false;
+    const fromNode = graph.nodes.find((n: any) => n.id === c.from?.nodeId);
+    return fromNode && spawnedNodeIds.has(fromNode.id);
+  });
 };
 
 const addInputPort = (process: ProcessNode) => {
@@ -831,6 +873,9 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
     graph.addConnection(intf, processInput);
   }
 
+  spawnedNodeIds.add(process.id);
+  spawnVer.value++;
+
   /* Place the new process to the right of the resource node, with collision avoidance */
   const nodeSize = getNodeSizeForLayout(resource);
   const startX = resource.position.x + nodeSize.width + 80;
@@ -863,6 +908,9 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
   if (upstreamOutput && leftPortOnResource) {
     graph.addConnection(upstreamOutput, leftPortOnResource);
   }
+
+  spawnedNodeIds.add(upstream.id);
+  spawnVer.value++;
 
   /* Place to the LEFT of the resource, with collision avoidance */
   const processSize = getNodeSizeForLayout(upstream);
@@ -1536,8 +1584,8 @@ watch(
                 <ResourceNodeVue
                   :node="node"
                   :on-delete="() => deleteNode(node as ResourceNode)"
-                  :on-output-connector="(intf) => addProcessFromOutput(node as ResourceNode, intf)"
-                  :on-input-connector="(intf) => addProcessBeforeInput(node as ResourceNode, intf)"
+                  :on-output-connector="resourceHasRightSpawn(node) ? undefined : (intf) => addProcessFromOutput(node as ResourceNode, intf)"
+                  :on-input-connector="resourceHasLeftSpawn(node) ? undefined : (intf) => addProcessBeforeInput(node as ResourceNode, intf)"
                 />
               </div>
             </template>
