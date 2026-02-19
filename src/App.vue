@@ -761,7 +761,6 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
   process.position.x = x;
   process.position.y = y;
   setNodePosition(process as any, x, y);
-  autoArrangeNodes();
   refreshConnectionCoords();
 };
 
@@ -786,17 +785,14 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
     graph.addConnection(upstreamOutput, leftPortOnResource);
   }
 
-  /* Position the new process to the LEFT of the resource node */
-  const resourceEl = document.getElementById(resource.id);
-  const resourceRect = resourceEl ? resourceEl.getBoundingClientRect() : null;
-  const scale = graph.scaling || 1;
-  const processWidth = resourceRect ? resourceRect.width / scale : 220;
-  const x = resource.position.x - processWidth - 80;
+  /* Position the new process to the LEFT of the resource node.
+     The spawned process has no DOM element yet, so use a fixed width estimate. */
+  const PROCESS_WIDTH_ESTIMATE = 280;
+  const x = resource.position.x - PROCESS_WIDTH_ESTIMATE - 80;
   const y = resource.position.y;
   upstream.position.x = x;
   upstream.position.y = y;
   setNodePosition(upstream as any, x, y);
-  autoArrangeNodes();
   refreshConnectionCoords();
 };
 
