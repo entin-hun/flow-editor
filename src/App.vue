@@ -812,10 +812,11 @@ const addInputPort = (process: ProcessNode) => {
     graph.addConnection(outputPort, processPort);
   }
 
-  /* Place the new resource to the left of the process node, with collision avoidance */
-  const startX = process.position.x - 200 - 80; // 200 = resource node graph-space width
-  const startY = process.position.y;
-  placeNodeAvoidingOverlap(graph, resource, startX, startY, "y", [process.id]);
+  /* Place the new resource: left in landscape, above in portrait */
+  const isPortraitMode = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+  const startX = isPortraitMode ? process.position.x : process.position.x - 200 - 80;
+  const startY = isPortraitMode ? process.position.y - 180 - 80 : process.position.y;
+  placeNodeAvoidingOverlap(graph, resource, startX, startY, isPortraitMode ? "x" : "y", [process.id]);
 
   nextTick(() => {
     const delays = [0, 120, 280];
@@ -839,11 +840,12 @@ const addOutputPort = (process: ProcessNode) => {
     graph.addConnection(processPort, inputPort);
   }
 
-  /* Place the new resource to the right of the process node, with collision avoidance */
+  /* Place the new resource: right in landscape, below in portrait */
   const processSize = getNodeSizeForLayout(process);
-  const startX = process.position.x + processSize.width + 80;
-  const startY = process.position.y;
-  placeNodeAvoidingOverlap(graph, resource, startX, startY, "y", [process.id]);
+  const isPortraitMode = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+  const startX = isPortraitMode ? process.position.x : process.position.x + processSize.width + 80;
+  const startY = isPortraitMode ? process.position.y + processSize.height + 80 : process.position.y;
+  placeNodeAvoidingOverlap(graph, resource, startX, startY, isPortraitMode ? "x" : "y", [process.id]);
 
   nextTick(() => {
     const delays = [0, 120, 280];
@@ -867,11 +869,12 @@ const addMechanismPort = (process: ProcessNode) => {
     graph.addConnection(outputPort, processPort);
   }
 
-  /* Place the new mechanism resource below the process node, with collision avoidance */
+  /* Place the mechanism: below in landscape, to the right in portrait */
   const processSize = getNodeSizeForLayout(process);
-  const startX = process.position.x;
-  const startY = process.position.y + processSize.height + 80;
-  placeNodeAvoidingOverlap(graph, resource, startX, startY, "x", [process.id]);
+  const isPortraitMode = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+  const startX = isPortraitMode ? process.position.x + processSize.width + 80 : process.position.x;
+  const startY = isPortraitMode ? process.position.y : process.position.y + processSize.height + 80;
+  placeNodeAvoidingOverlap(graph, resource, startX, startY, isPortraitMode ? "y" : "x", [process.id]);
 
   nextTick(() => {
     const delays = [0, 120, 280];
@@ -899,11 +902,12 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
   spawnedNodeIds.add(process.id);
   spawnVer.value++;
 
-  /* Place the new process to the right of the resource node, with collision avoidance */
+  /* Place the new process: right in landscape, below in portrait */
   const nodeSize = getNodeSizeForLayout(resource);
-  const startX = resource.position.x + nodeSize.width + 80;
-  const startY = resource.position.y;
-  placeNodeAvoidingOverlap(graph, process, startX, startY, "y", [resource.id]);
+  const isPortraitMode = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+  const startX = isPortraitMode ? resource.position.x : resource.position.x + nodeSize.width + 80;
+  const startY = isPortraitMode ? resource.position.y + nodeSize.height + 80 : resource.position.y;
+  placeNodeAvoidingOverlap(graph, process, startX, startY, isPortraitMode ? "x" : "y", [resource.id]);
 
   nextTick(() => {
     const delays = [0, 120, 280];
@@ -935,11 +939,12 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
   spawnedNodeIds.add(upstream.id);
   spawnVer.value++;
 
-  /* Place to the LEFT of the resource, with collision avoidance */
+  /* Place upstream: left in landscape, above in portrait */
   const processSize = getNodeSizeForLayout(upstream);
-  const startX = resource.position.x - processSize.width - 80;
-  const startY = resource.position.y;
-  placeNodeAvoidingOverlap(graph, upstream, startX, startY, "y", [resource.id]);
+  const isPortraitMode = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+  const startX = isPortraitMode ? resource.position.x : resource.position.x - processSize.width - 80;
+  const startY = isPortraitMode ? resource.position.y - processSize.height - 80 : resource.position.y;
+  placeNodeAvoidingOverlap(graph, upstream, startX, startY, isPortraitMode ? "x" : "y", [resource.id]);
 
   nextTick(() => {
     const delays = [0, 120, 280];
