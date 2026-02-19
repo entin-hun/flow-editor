@@ -103,6 +103,7 @@ type FlowPayload = {
   nodes: SavedNodeMeta[];
   view?: { scaling?: number; panning?: { x: number; y: number } };
   contact?: { email?: string; phone?: string };
+  orientation?: "portrait" | "landscape";
   updatedAt: string;
 };
 
@@ -140,6 +141,7 @@ const buildFlowPayload = (): FlowPayload => {
       email: contactEmail.value.trim() || undefined,
       phone: contactPhone.value.trim() || undefined,
     },
+    orientation: (typeof window !== "undefined" && window.innerHeight > window.innerWidth) ? "portrait" : "landscape",
     updatedAt: new Date().toISOString(),
   };
 };
@@ -238,6 +240,14 @@ const applyFlowPayload = (payload: FlowPayload) => {
   // port coordinates for connections. Use multiple retries with increasing delays.
   const scheduleRefresh = () => {
     suppressAutoArrange.value = false;
+
+    // If the saved orientation doesn't match the current screen orientation,
+    // re-run auto-arrange so positions are correct for the viewer's viewport.
+    const currentOrientation = (typeof window !== "undefined" && window.innerHeight > window.innerWidth)
+      ? "portrait"
+      : "landscape";
+    const needsRearrange = payload.orientation && payload.orientation !== currentOrientation;
+
     const delays = [0, 50, 150, 400, 800];
     delays.forEach((delay) => {
       setTimeout(() => {
@@ -245,6 +255,12 @@ const applyFlowPayload = (payload: FlowPayload) => {
         updateConnectionArrows();
       }, delay);
     });
+
+    if (needsRearrange) {
+      // Give DOM time to settle before re-arranging
+      setTimeout(() => autoArrangeNodes(), 200);
+      setTimeout(() => autoArrangeNodes(), 600);
+    }
   };
   nextTick(scheduleRefresh);
 };
@@ -257,6 +273,13 @@ const loadFlowById = async (id: string) => {
   }
   const payload = (await response.json()) as FlowPayload;
   applyFlowPayload(payload);
+
+  // Permalink loads: if no orientation was saved (legacy) or orientation mismatches,
+  // always auto-arrange so connection sides and positions fit the current screen.
+  if (!payload.orientation) {
+    setTimeout(() => autoArrangeNodes(), 300);
+    setTimeout(() => autoArrangeNodes(), 700);
+  }
 };
 
 const handleSaveFlow = async () => {
