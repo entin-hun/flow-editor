@@ -752,12 +752,12 @@ const addProcessFromOutput = (resource: ResourceNode, intf: NodeInterface<unknow
     graph.addConnection(intf, processInput);
   }
 
-  const EDGE_GAP = 24;
-  const resourceEl = document.getElementById(resource.id);
-  const resourceRect = resourceEl ? resourceEl.getBoundingClientRect() : null;
-  const scale = graph.scaling || 1;
-  const resourceWidth = resourceRect ? resourceRect.width / scale : 200;
-  const x = resource.position.x + resourceWidth + EDGE_GAP;
+  /* Place the new process just to the right of the resource node.
+     Both node types declare width = 200 in graph-space; use that directly
+     instead of DOM measurement which is unreliable under zoom/scale. */
+  const RESOURCE_WIDTH = (resource as any).width ?? 200;
+  const GAP = 30;
+  const x = resource.position.x + RESOURCE_WIDTH + GAP;
   const y = resource.position.y;
   process.position.x = x;
   process.position.y = y;
@@ -786,15 +786,11 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
     graph.addConnection(upstreamOutput, leftPortOnResource);
   }
 
-    /* Position the new process to the LEFT of the resource node.
-      Estimate process width from existing process nodes when possible. */
-    const EDGE_GAP = 24;
-    const firstProcess = graph.nodes.find((node) => node.type === "ProcessNode") as ProcessNode | undefined;
-    const firstProcessEl = firstProcess ? document.getElementById(firstProcess.id) : null;
-    const processRect = firstProcessEl ? firstProcessEl.getBoundingClientRect() : null;
-    const scale = graph.scaling || 1;
-    const PROCESS_WIDTH_ESTIMATE = processRect ? processRect.width / scale : 280;
-    const x = resource.position.x - PROCESS_WIDTH_ESTIMATE - EDGE_GAP;
+  /* Place the new process just to the LEFT of the resource node.
+     Use the known graph-space width (200) instead of DOM measurement. */
+  const PROCESS_WIDTH = (upstream as any).width ?? 200;
+  const GAP = 30;
+  const x = resource.position.x - PROCESS_WIDTH - GAP;
   const y = resource.position.y;
   upstream.position.x = x;
   upstream.position.y = y;
