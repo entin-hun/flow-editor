@@ -5,7 +5,7 @@ type ReownAuthProfile = {
   provider?: string;
 };
 
-const SOCIALS = ["google", "apple", "facebook", "x", "email", "discord", "farcaster", "github"];
+const SOCIALS = ["google", "apple", "facebook", "x", "discord", "farcaster", "github"];
 
 // Track if appkit has been initialized
 let appkitInstance: any = null;
@@ -126,6 +126,7 @@ export const initReownAppKit = async (onToken?: (token: string) => void) => {
       },
       features: {
         analytics: true,
+        connectMethodsOrder: ["social", "email", "wallet"],
         socials: SOCIALS as any,
       },
       enableEIP6963: true,
