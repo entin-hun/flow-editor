@@ -24,6 +24,16 @@ type ResourceFields = {
   quantity?: number;
   duration?: string;
   parameters?: string;
+  lcaAutocompleteMainProduct?: boolean;
+};
+
+type ProductionOption = {
+  uuid: string;
+  production_name?: string;
+  activity_name?: string;
+  location?: string;
+  unit?: string;
+  similarity?: number;
 };
 
 const readFields = () => (props.node as AbstractNode & { fields?: ResourceFields }).fields ?? {};
@@ -33,6 +43,127 @@ const readTitle = () => (props.node as AbstractNode & { title?: string }).title 
 const titleDraft = ref(readTitle());
 const syncTitle = () => {
   (props.node as AbstractNode & { title?: string }).title = titleDraft.value.trim();
+};
+
+const isMainProductAutocompleteNode = computed(() => {
+  return Boolean(readFields().lcaAutocompleteMainProduct) && readResourceType() === "output";
+});
+
+const autocompleteOptions = ref<ProductionOption[]>([]);
+const autocompleteLoading = ref(false);
+const autocompleteOpen = ref(false);
+let autocompleteTimer: ReturnType<typeof setTimeout> | undefined;
+let autocompleteAbort: AbortController | undefined;
+
+const AUTOCOMPLETE_URL = "https://lca.trace.market/api/v1/services/agribalyse/production-options/autocomplete";
+const PRODUCTION_TREE_URL = "https://lca.trace.market/api/v1/production-tree/agribalyse";
+
+const clearAutocomplete = () => {
+  autocompleteOptions.value = [];
+  autocompleteOpen.value = false;
+};
+
+const fetchAutocomplete = async (query: string) => {
+  if (!isMainProductAutocompleteNode.value) return;
+  const trimmed = query.trim();
+  if (trimmed.length < 2) {
+    clearAutocomplete();
+    return;
+  }
+
+  try {
+    autocompleteAbort?.abort();
+    const controller = new AbortController();
+    autocompleteAbort = controller;
+    autocompleteLoading.value = true;
+
+    const response = await fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(trimmed)}&limit=10`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Autocomplete request failed: ${response.status}`);
+    }
+    const payload = await response.json();
+    const results = Array.isArray(payload?.results) ? (payload.results as ProductionOption[]) : [];
+    autocompleteOptions.value = results;
+    autocompleteOpen.value = results.length > 0;
+  } catch (error) {
+    if ((error as Error).name !== "AbortError") {
+      console.error("[LCA] autocomplete failed", error);
+      clearAutocomplete();
+    }
+  } finally {
+    autocompleteLoading.value = false;
+  }
+};
+
+const scheduleAutocomplete = (query: string) => {
+  if (autocompleteTimer) {
+    clearTimeout(autocompleteTimer);
+  }
+  autocompleteTimer = setTimeout(() => {
+    fetchAutocomplete(query);
+  }, 250);
+};
+
+const requestProductionTree = async (uuid: string) => {
+  try {
+    const response = await fetch(`${PRODUCTION_TREE_URL}/${encodeURIComponent(uuid)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ limit: 10 }),
+    });
+
+    let payload: unknown = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      console.error("[LCA] production-tree request failed", response.status, payload);
+      return;
+    }
+
+    console.log("[LCA] production-tree response", payload);
+  } catch (error) {
+    console.error("[LCA] production-tree request error", error);
+  }
+};
+
+const selectAutocompleteOption = async (option: ProductionOption) => {
+  if (!option?.uuid) return;
+  const label = (option.production_name || option.activity_name || "").trim();
+  if (label) {
+    titleDraft.value = label;
+    syncTitle();
+  }
+  clearAutocomplete();
+  await requestProductionTree(option.uuid);
+};
+
+const handleTitleInput = () => {
+  syncTitle();
+  if (!isMainProductAutocompleteNode.value) return;
+  scheduleAutocomplete(titleDraft.value);
+};
+
+const handleTitleFocus = () => {
+  if (!isMainProductAutocompleteNode.value) return;
+  if (autocompleteOptions.value.length > 0) {
+    autocompleteOpen.value = true;
+  }
+};
+
+const handleTitleBlur = () => {
+  syncTitle();
+  window.setTimeout(() => {
+    autocompleteOpen.value = false;
+  }, 120);
 };
 
 watch(
@@ -198,6 +329,11 @@ onMounted(() => {
 });
 onUnmounted(() => {
   window.removeEventListener("resize", updateOrientation);
+
+  if (autocompleteTimer) {
+    clearTimeout(autocompleteTimer);
+  }
+  autocompleteAbort?.abort();
 
   const allIntfs = [...Object.values(props.node.inputs), ...Object.values(props.node.outputs)] as NodeInterface[];
   allIntfs.forEach((intf) => {
@@ -400,13 +536,33 @@ const NodeInterfaceView = Components.NodeInterface;
     />
 
     <div class="resource-title">
-      <input
-        v-model="titleDraft"
-        class="title-input"
-        type="text"
-        @input="syncTitle"
-        @blur="syncTitle"
-      />
+      <div class="title-input-wrap">
+        <input
+          v-model="titleDraft"
+          class="title-input"
+          type="text"
+          @input="handleTitleInput"
+          @focus="handleTitleFocus"
+          @blur="handleTitleBlur"
+        />
+        <div
+          v-if="isMainProductAutocompleteNode && (autocompleteOpen || autocompleteLoading)"
+          class="title-autocomplete-panel"
+        >
+          <div v-if="autocompleteLoading" class="title-autocomplete-hint">Keresés…</div>
+          <button
+            v-for="option in autocompleteOptions"
+            :key="option.uuid"
+            type="button"
+            class="title-autocomplete-option"
+            @pointerdown.prevent="selectAutocompleteOption(option)"
+          >
+            <span class="title-autocomplete-main">{{ option.production_name || option.activity_name || option.uuid }}</span>
+            <span class="title-autocomplete-sub">{{ option.location || '—' }} · {{ option.activity_name || 'n/a' }}</span>
+          </button>
+          <div v-if="!autocompleteLoading && autocompleteOptions.length === 0" class="title-autocomplete-hint">Nincs találat</div>
+        </div>
+      </div>
       <button v-show="!hasMultipleConnections" class="delete-btn" type="button" title="Delete" @click.stop="props.onDelete?.()">
         ×
       </button>
@@ -585,6 +741,11 @@ const NodeInterfaceView = Components.NodeInterface;
   gap: 6px;
 }
 
+.title-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
 .title-input {
   width: 100%;
   background: hsl(var(--secondary));
@@ -603,6 +764,59 @@ const NodeInterfaceView = Components.NodeInterface;
   outline: none;
   border-color: hsl(var(--primary));
   box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+}
+
+.title-autocomplete-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow: auto;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+}
+
+.title-autocomplete-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--radius) - 4px);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  padding: 6px;
+}
+
+.title-autocomplete-option:hover {
+  background: hsl(var(--primary) / 0.1);
+}
+
+.title-autocomplete-main {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.title-autocomplete-sub {
+  font-size: 10px;
+  color: hsl(var(--muted-fg));
+}
+
+.title-autocomplete-hint {
+  font-size: 10px;
+  color: hsl(var(--muted-fg));
+  padding: 4px 6px;
 }
 
 .delete-btn {

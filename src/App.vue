@@ -1408,6 +1408,10 @@ onMounted(() => {
   manufacturingNode.title = "Folyamat";
   wasteNode.title = "Hulladékkezelés";
   (output1 as any).title = "Főtermék";
+  (output1 as any).fields = {
+    ...((output1 as any).fields || {}),
+    lcaAutocompleteMainProduct: true,
+  };
   (output2 as any).title = "Melléktermék";
 
   // Connect resources to process node
