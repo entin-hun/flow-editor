@@ -55,8 +55,8 @@ const autocompleteOpen = ref(false);
 let autocompleteTimer: ReturnType<typeof setTimeout> | undefined;
 let autocompleteAbort: AbortController | undefined;
 
-const AUTOCOMPLETE_URL = "https://lca.trace.market/api/v1/services/agribalyse/production-options/autocomplete";
-const PRODUCTION_TREE_URL = "https://lca.trace.market/api/v1/production-tree/agribalyse";
+const AUTOCOMPLETE_URL = "https://lca.trace.market/api/v1/production-options/autocomplete";
+const PRODUCTION_TREE_URL = "https://lca.trace.market/api/v1/production-tree/{uuid}?service=ecoinvent_3_12_cutoff_fixed";
 
 const clearAutocomplete = () => {
   autocompleteOptions.value = [];
@@ -109,7 +109,8 @@ const scheduleAutocomplete = (query: string) => {
 
 const requestProductionTree = async (uuid: string) => {
   try {
-    const response = await fetch(`${PRODUCTION_TREE_URL}/${encodeURIComponent(uuid)}`, {
+    const endpoint = PRODUCTION_TREE_URL.replace("{uuid}", encodeURIComponent(uuid));
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
