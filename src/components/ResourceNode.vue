@@ -119,7 +119,7 @@ const requestLifecycleTreeResolve = async (q: string) => {
       },
       body: JSON.stringify({
         q: query,
-        mode: "both",
+        mode: "upstream",
         combine_matches: true,
       }),
     });
@@ -563,8 +563,13 @@ const NodeInterfaceView = Components.NodeInterface;
             class="title-autocomplete-option"
             @pointerdown.prevent="selectAutocompleteOption(option)"
           >
-            <span class="title-autocomplete-main">{{ option.production_name || option.activity_name || option.uuid }}</span>
-            <span class="title-autocomplete-sub">{{ option.location || '—' }} · {{ option.activity_name || 'n/a' }}</span>
+            <template v-if="option.production_name && option.production_name.includes(' | ')">
+              <span class="title-autocomplete-main">{{ option.production_name.split(' | ')[0] }}</span>
+              <span class="title-autocomplete-sub">{{ option.production_name.split(' | ').slice(1).join(' | ') }}</span>
+            </template>
+            <template v-else>
+              <span class="title-autocomplete-main">{{ option.production_name || option.activity_name || option.uuid }}</span>
+            </template>
           </button>
           <div v-if="!autocompleteLoading && autocompleteOptions.length === 0" class="title-autocomplete-hint">Nincs találat</div>
         </div>
