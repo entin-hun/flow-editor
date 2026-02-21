@@ -8,11 +8,56 @@ type PortMeta = {
   location?: Location;
 };
 
+type LifecycleTreeNode = {
+  activity: {
+    uuid: string;
+    name: string;
+    location: string;
+    unit: string;
+    product: string;
+    database: string;
+  };
+  production: {
+    product: string;
+    amount: number;
+    unit: string;
+  };
+  technosphere_inputs?: Array<{
+    uuid: string;
+    amount: number;
+    unit: string;
+    location: string;
+    database: string;
+    child?: LifecycleTreeNode;
+  }>;
+  depth?: number;
+};
+
+type LifecycleTreeResponse = {
+  query: string;
+  mode: string;
+  combine_matches: boolean;
+  roots_count: number;
+  forest: Array<{
+    selected_root?: {
+      production_name: string;
+      activity_name: string;
+      uuid: string;
+    };
+    lifecycle?: {
+      upstream?: {
+        tree?: LifecycleTreeNode;
+      };
+    };
+  }>;
+};
+
 const props = defineProps<{
   node: AbstractNode;
   onDelete?: () => void;
   onOutputConnector?: (intf: NodeInterface<unknown>) => void;
   onInputConnector?: (intf: NodeInterface<unknown>) => void;
+  onLifecycleTree?: (tree: LifecycleTreeResponse) => void;
 }>();
 
 type ResourceFields = {
@@ -121,6 +166,11 @@ const requestLifecycleTreeResolve = async (q: string) => {
         q: query,
         mode: "upstream",
         combine_matches: true,
+        include_candidates: true,
+        prefer_raw_material_roots: true,
+        service: "ecoinvent_3_12_cutoff_fixed",
+        max_candidates: 40,
+        max_roots: 5,
       }),
     });
 
@@ -137,6 +187,11 @@ const requestLifecycleTreeResolve = async (q: string) => {
     }
 
     console.log("[LCA] lifecycle-tree-resolve response", payload);
+    
+    // Call the lifecycle tree callback if provided
+    if (props.onLifecycleTree && payload) {
+      props.onLifecycleTree(payload as LifecycleTreeResponse);
+    }
   } catch (error) {
     console.error("[LCA] lifecycle-tree-resolve request error", error);
   }

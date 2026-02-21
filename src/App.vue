@@ -2,7 +2,7 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { DependencyEngine } from "@baklavajs/engine";
 import { BaklavaEditor, Components, setNodePosition, useBaklava } from "@baklavajs/renderer-vue";
-import type { NodeInterface } from "@baklavajs/core";
+import type { NodeInterface, AbstractNode } from "@baklavajs/core";
 import Idef0Node from "./components/Idef0Node.vue";
 import ResourceNodeVue from "./components/ResourceNode.vue";
 import { ProcessNode } from "./nodes/ProcessNode";
@@ -952,6 +952,188 @@ const addProcessBeforeInput = (resource: ResourceNode, _intf: NodeInterface<unkn
   });
 };
 
+// Types for lifecycle tree
+type LifecycleTreeNode = {
+  activity: {
+    uuid: string;
+    name: string;
+    location: string;
+    unit: string;
+    product: string;
+    database: string;
+  };
+  production: {
+    product: string;
+    amount: number;
+    unit: string;
+  };
+  technosphere_inputs?: Array<{
+    uuid: string;
+    amount: number;
+    unit: string;
+    location: string;
+    database: string;
+    child?: LifecycleTreeNode;
+  }>;
+  depth?: number;
+};
+
+type LifecycleTreeResponse = {
+  query: string;
+  mode: string;
+  combine_matches: boolean;
+  roots_count: number;
+  forest: Array<{
+    selected_root?: {
+      production_name: string;
+      activity_name: string;
+      uuid: string;
+    };
+    lifecycle?: {
+      upstream?: {
+        tree?: LifecycleTreeNode;
+      };
+    };
+  }>;
+};
+
+interface TreeNodeContext {
+  processNode: ProcessNode;
+  nodePositions: Map<string, { x: number; y: number }>;
+  usedY: number;
+  baseY: number;
+}
+
+const buildLifecycleTree = (response: LifecycleTreeResponse) => {
+  const graph = baklava.displayedGraph;
+  if (!graph) return;
+
+  const forest = response.forest || [];
+  if (forest.length === 0) return;
+
+  const firstForest = forest[0];
+  const lifecycle = firstForest.lifecycle;
+  if (!lifecycle || !lifecycle.upstream || !lifecycle.upstream.tree) return;
+
+  const treeRoot = lifecycle.upstream.tree;
+  const processCount = graph.nodes.filter((n) => n.type === "ProcessNode").length;
+
+  // Create root process node
+  const rootProcess = graph.addNode(new ProcessNode());
+  if (!rootProcess) return;
+
+  (rootProcess as any).title = treeRoot.activity.name.split(" | ")[0] || `Process ${processCount + 1}`;
+  rootProcess.position = { x: 100, y: 100 };
+
+  // Create output resource (the main product)
+  const outputResource = graph.addNode(new ResourceNode("output"));
+  if (!outputResource) return;
+  (outputResource as any).title = treeRoot.production.product;
+  outputResource.position = { x: 450, y: 100 };
+
+  // Connect root process to output
+  const processOutput = rootProcess.addFlowInterface("Output", "material", "output");
+  const resourceInput = outputResource.addInputPort("Input", "left");
+  if (processOutput && resourceInput) {
+    graph.addConnection(processOutput, resourceInput);
+  }
+
+  // Context for recursive processing
+  const context: TreeNodeContext = {
+    processNode: rootProcess,
+    nodePositions: new Map([[rootProcess.id, { x: 100, y: 100 }]]),
+    usedY: 200,
+    baseY: 200,
+  };
+
+  // Process technosphere inputs recursively
+  if (treeRoot.technosphere_inputs) {
+    treeRoot.technosphere_inputs.forEach((input, inputIdx) => {
+      if (input.amount > 0 && input.child) {
+        // Only process positive amounts (ignore negative flows/byproducts)
+        buildTreeNode(graph, input, inputIdx, rootProcess, context);
+      }
+    });
+  }
+
+  spawnedNodeIds.add(rootProcess.id);
+  spawnedNodeIds.add(outputResource.id);
+  spawnVer.value++;
+
+  nextTick(() => {
+    const delays = [0, 120, 280];
+    delays.forEach((d) => setTimeout(() => refreshConnectionCoords(), d));
+  });
+};
+
+const buildTreeNode = (
+  graph: any,
+  input: {
+    uuid: string;
+    amount: number;
+    unit: string;
+    location: string;
+    database: string;
+    child?: LifecycleTreeNode;
+  },
+  inputIdx: number,
+  parentProcess: ProcessNode,
+  context: TreeNodeContext
+): void => {
+  if (!input.child) return;
+
+  const child = input.child;
+
+  // Create input resource for this input
+  const inputResource = graph.addNode(new ResourceNode("input"));
+  if (!inputResource) return;
+
+  (inputResource as any).title = child.production.product;
+  (inputResource as AbstractNode & { inputQuantity?: number }).inputQuantity = input.amount;
+
+  // Position input resources vertically
+  const inputX = 100;
+  const inputY = context.usedY;
+  inputResource.position = { x: inputX, y: inputY };
+  context.usedY += 150;
+
+  // Create process node for this child activity
+  const childProcess = graph.addNode(new ProcessNode());
+  if (!childProcess) return;
+
+  (childProcess as any).title = child.activity.name.split(" | ")[0] || child.production.product;
+
+  const processX = 400;
+  const processY = inputY;
+  childProcess.position = { x: processX, y: processY };
+
+  // Connect input resource to child process
+  const childProcessInput = childProcess.addFlowInterface("Input", "material", "input");
+  const inputResourceOutput = inputResource.addOutputPort("Output", "right");
+  if (childProcessInput && inputResourceOutput) {
+    graph.addConnection(inputResourceOutput, childProcessInput);
+  }
+
+  // Connect child process to parent process
+  const childProcessOutput = childProcess.addFlowInterface("Output", "material", "output");
+  const parentProcessInput = parentProcess.addFlowInterface(`Input ${inputIdx + 1}`, "material", "input");
+  if (childProcessOutput && parentProcessInput) {
+    graph.addConnection(childProcessOutput, parentProcessInput);
+  }
+
+  spawnedNodeIds.add(inputResource.id);
+  spawnedNodeIds.add(childProcess.id);
+
+  // Recursively process this child's technosphere inputs
+  if (child.technosphere_inputs) {
+    child.technosphere_inputs.forEach((grandchildInput, grandchildIdx) => {
+      if (grandchildInput.amount > 0 && grandchildInput.child) {
+        buildTreeNode(graph, grandchildInput, grandchildIdx, childProcess, context);
+      }
+    });
+  }
+};
+
 const autoArrangeNodes = () => {
   const graph = baklava.displayedGraph;
   const nodes = graph.nodes;
@@ -1618,6 +1800,7 @@ watch(
                   :on-delete="() => deleteNode(node as ResourceNode)"
                   :on-output-connector="resourceHasRightSpawn(node) ? undefined : (intf) => addProcessFromOutput(node as ResourceNode, intf)"
                   :on-input-connector="resourceHasLeftSpawn(node) ? undefined : (intf) => addProcessBeforeInput(node as ResourceNode, intf)"
+                  :on-lifecycle-tree="buildLifecycleTree"
                 />
               </div>
             </template>
