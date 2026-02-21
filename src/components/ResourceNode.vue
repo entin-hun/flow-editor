@@ -171,6 +171,12 @@ const requestLifecycleTreeResolve = async (q: string) => {
         service: "ecoinvent_3_12_cutoff_fixed",
         max_candidates: 40,
         max_roots: 5,
+        max_depth: 2,
+        // Optimize response: exclude energy, transport, chemicals, utilities
+        // Keep focus on direct production materials and feed/agricultural inputs
+        exclude_categories: ["energy", "transport", "chemical", "utility"],
+        // Limit results per node to reduce payload size
+        max_children_per_node: 15,
       }),
     });
 

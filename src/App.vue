@@ -1004,6 +1004,42 @@ interface TreeNodeContext {
   baseY: number;
 }
 
+const isProductionMaterial = (productName: string): boolean => {
+  const lowerName = productName.toLowerCase();
+  
+  // Exclude: energy, transport, chemicals, utilities
+  const excludeKeywords = [
+    'heat', 'electricity', 'energy',
+    'transport', 'car', 'lorry', 'aircraft', 'ship', 'train',
+    'chemical', 'sodium', 'hydroxide', 'organic', 'factory',
+    'water', 'tap water', 'water supply', 'network',
+    'oil', 'lubricating', 'sulfur', 'operation', 'transmission'
+  ];
+  
+  // Include: feed, crops, agricultural, food products
+  const includeKeywords = [
+    'feed', 'grain', 'silage', 'hay', 'straw',
+    'maize', 'barley', 'wheat', 'oat', 'soy', 'alfalfa', 'grass',
+    'crop', 'seed',
+    'sugar', 'starch', 'protein',
+    'fruit', 'strawberry', 'vegetable', 'herb', 'spice',
+    'whey', 'milk', 'yogurt', 'cream', 'butter', 'cheese', 'meat', 'beef', 'pork', 'chicken',
+    'evaporation', 'spray-drying'
+  ];
+  
+  // Check if explicitly excluded
+  for (const keyword of excludeKeywords) {
+    if (lowerName.includes(keyword)) return false;
+  }
+  
+  // Must contain at least one include keyword
+  for (const keyword of includeKeywords) {
+    if (lowerName.includes(keyword)) return true;
+  }
+  
+  return false;
+};
+
 const buildLifecycleTree = (response: LifecycleTreeResponse) => {
   const graph = baklava.displayedGraph;
   if (!graph) return;
@@ -1049,8 +1085,8 @@ const buildLifecycleTree = (response: LifecycleTreeResponse) => {
   // Process technosphere inputs recursively
   if (treeRoot.technosphere_inputs) {
     treeRoot.technosphere_inputs.forEach((input, inputIdx) => {
-      if (input.amount > 0 && input.child) {
-        // Only process positive amounts (ignore negative flows/byproducts)
+      if (input.amount > 0 && input.child && isProductionMaterial(input.child.production.product)) {
+        // Only process positive amounts (ignore negative flows/byproducts) and filter for production materials
         buildTreeNode(graph, input, inputIdx, rootProcess, context);
       }
     });
@@ -1127,7 +1163,7 @@ const buildTreeNode = (
   // Recursively process this child's technosphere inputs
   if (child.technosphere_inputs) {
     child.technosphere_inputs.forEach((grandchildInput, grandchildIdx) => {
-      if (grandchildInput.amount > 0 && grandchildInput.child) {
+      if (grandchildInput.amount > 0 && grandchildInput.child && isProductionMaterial(grandchildInput.child.production.product)) {
         buildTreeNode(graph, grandchildInput, grandchildIdx, childProcess, context);
       }
     });
