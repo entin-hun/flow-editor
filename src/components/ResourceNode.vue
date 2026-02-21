@@ -172,11 +172,31 @@ const requestLifecycleTreeResolve = async (q: string) => {
         max_candidates: 40,
         max_roots: 5,
         max_depth: 2,
-        // Optimize response: exclude energy, transport, chemicals, utilities
-        // Keep focus on direct production materials and feed/agricultural inputs
-        exclude_categories: ["energy", "transport", "chemical", "utility"],
-        // Limit results per node to reduce payload size
+        
+        // Server-side filtering instructions for production materials supply chain
+        include_categories: [
+          "feed", "crop", "agricultural", "food", "milk", "dairy", "meat",
+          "grain", "fodder", "silage", "hay", "plant", "vegetable", "fruit",
+          "sugar", "starch", "protein", "oil", "seed"
+        ],
+        exclude_categories: [
+          "energy", "electricity", "heat", "power", "fuel",
+          "transport", "logistics", "shipping", "vehicle",
+          "chemical", "solvent", "lubricant", "additive",
+          "water", "utility", "network", "infrastructure"
+        ],
+        
+        // Optimize response payload
         max_children_per_node: 15,
+        min_amount_threshold: 0.01,  // Ignore flows below 1%
+        include_location: false,      // Skip detailed location info
+        include_categories_field: false,  // Skip taxonomy fields
+        only_essential_fields: true,  // Return only: uuid, name, activity_name, production_name, amount, product
+        
+        // Response hints for backend optimization
+        simplify_activity_names: true,  // Remove Cutoff/Region suffixes
+        deduplicate_similar_inputs: true,  // Merge similar materials
+        sort_by_amount_desc: true,  // Most important inputs first
       }),
     });
 
