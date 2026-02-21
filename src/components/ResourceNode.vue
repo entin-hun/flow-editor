@@ -56,7 +56,7 @@ let autocompleteTimer: ReturnType<typeof setTimeout> | undefined;
 let autocompleteAbort: AbortController | undefined;
 
 const AUTOCOMPLETE_URL = "https://lca.trace.market/api/v1/production-options/autocomplete";
-const PRODUCTION_TREE_URL = "https://lca.trace.market/api/v1/production-tree/{uuid}?service=ecoinvent_3_12_cutoff_fixed";
+const LIFECYCLE_TREE_RESOLVE_URL = "https://lca.trace.market/api/v1/lifecycle-tree-resolve";
 
 const clearAutocomplete = () => {
   autocompleteOptions.value = [];
@@ -107,15 +107,21 @@ const scheduleAutocomplete = (query: string) => {
   }, 250);
 };
 
-const requestProductionTree = async (uuid: string) => {
+const requestLifecycleTreeResolve = async (q: string) => {
+  const query = q.trim();
+  if (!query) return;
+
   try {
-    const endpoint = PRODUCTION_TREE_URL.replace("{uuid}", encodeURIComponent(uuid));
-    const response = await fetch(endpoint, {
+    const response = await fetch(LIFECYCLE_TREE_RESOLVE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ limit: 10 }),
+      body: JSON.stringify({
+        q: query,
+        mode: "both",
+        combine_matches: true,
+      }),
     });
 
     let payload: unknown = null;
@@ -126,25 +132,24 @@ const requestProductionTree = async (uuid: string) => {
     }
 
     if (!response.ok) {
-      console.error("[LCA] production-tree request failed", response.status, payload);
+      console.error("[LCA] lifecycle-tree-resolve request failed", response.status, payload);
       return;
     }
 
-    console.log("[LCA] production-tree response", payload);
+    console.log("[LCA] lifecycle-tree-resolve response", payload);
   } catch (error) {
-    console.error("[LCA] production-tree request error", error);
+    console.error("[LCA] lifecycle-tree-resolve request error", error);
   }
 };
 
 const selectAutocompleteOption = async (option: ProductionOption) => {
-  if (!option?.uuid) return;
   const label = (option.production_name || option.activity_name || "").trim();
   if (label) {
     titleDraft.value = label;
     syncTitle();
   }
   clearAutocomplete();
-  await requestProductionTree(option.uuid);
+  await requestLifecycleTreeResolve(label || titleDraft.value);
 };
 
 const handleTitleInput = () => {
